@@ -94,26 +94,16 @@
             <h3 class="text-lg font-bold mb-4" id="modal-title">新增活動</h3>
             <form id="event-form">
                 <input type="hidden" id="event-id"><input type="hidden" id="event-date">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="event-category" class="block text-sm font-medium text-gray-700">分類</label>
-                        <select id="event-category" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-                            <option value="">請選擇</option>
-                            <option value="activity">活動類型</option>
-                            <option value="venue">場地</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="event-tag" class="block text-sm font-medium text-gray-700">標籤</label>
-                        <select id="event-tag" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" disabled>
-                            <option value="">先選分類</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="mt-4">
+                
+                <div>
                     <label for="event-name" class="block text-sm font-medium text-gray-700">活動名稱</label>
                     <input type="text" id="event-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
+                
+                <div id="event-tags-container" class="mt-4 space-y-3 max-h-32 overflow-y-auto border p-3 rounded-md bg-gray-50">
+                    <!-- Dynamic tag checkboxes will be inserted here -->
+                </div>
+
                 <div class="mt-4">
                     <label for="event-spots" class="block text-sm font-medium text-gray-700">報名剩餘名額</label>
                     <input type="number" id="event-spots" min="0" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -224,8 +214,7 @@
         const eventSpotsInput = document.getElementById('event-spots');
         const eventUrlInput = document.getElementById('event-url');
         const eventColorInput = document.getElementById('event-color');
-        const eventCategorySelect = document.getElementById('event-category');
-        const eventTagSelect = document.getElementById('event-tag');
+        const eventTagsContainer = document.getElementById('event-tags-container');
         const cancelEventBtn = document.getElementById('cancel-event-btn');
         const deleteEventBtn = document.getElementById('delete-event-btn');
         const deleteConfirmModal = document.getElementById('delete-confirm-modal');
@@ -308,7 +297,7 @@
                 const allBtn = document.createElement('button');
                 allBtn.textContent = '顯示全部';
                 allBtn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${!activeFilter ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
-                allBtn.onclick = () => { activeFilter = null; renderFilterControls(); renderCalendar(); };
+                allBtn.onclick = () => { activeFilter = null; renderFilterControls(); renderCalendar(); renderMobileEvents(selectedDateStr); };
                 wrapper.appendChild(allBtn);
 
                 filterTags[category].forEach(tag => {
@@ -320,6 +309,7 @@
                         activeFilter = { category, tag };
                         renderFilterControls();
                         renderCalendar();
+                        renderMobileEvents(selectedDateStr);
                     };
                     wrapper.appendChild(btn);
                 });
@@ -334,7 +324,9 @@
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             currentMonthYear.textContent = `${year}年 ${month + 1}月`;
             
-            const filteredEvents = activeFilter ? allEvents.filter(e => e.category === activeFilter.category && e.tag === activeFilter.tag) : allEvents;
+            const filteredEvents = activeFilter 
+                ? allEvents.filter(e => e.tags && e.tags[activeFilter.category] && e.tags[activeFilter.category].includes(activeFilter.tag))
+                : allEvents;
             const eventsByDate = filteredEvents.reduce((acc, event) => {
                 (acc[event.date] = acc[event.date] || []).push(event); return acc;
             }, {});
@@ -404,7 +396,12 @@
             const dateObj = new Date(dateString + 'T00:00:00');
             mobileEventDate.textContent = `${dateObj.getFullYear()}年 ${dateObj.getMonth() + 1}月 ${dateObj.getDate()}日`;
             mobileEventList.innerHTML = '';
-            const events = allEvents.filter(e => e.date === dateString);
+            
+            const filteredEvents = activeFilter 
+                ? allEvents.filter(e => e.tags && e.tags[activeFilter.category] && e.tags[activeFilter.category].includes(activeFilter.tag))
+                : allEvents;
+            const events = filteredEvents.filter(e => e.date === dateString);
+
             if (events.length > 0) {
                 events.forEach(event => mobileEventList.appendChild(createEventBubble(event)));
             } else {
@@ -417,18 +414,23 @@
         }
         
         function openModal(dateString, eventId = null) {
-            eventForm.reset(); eventTagSelect.innerHTML = '<option value="">先選分類</option>'; eventTagSelect.disabled = true;
+            eventForm.reset();
             eventDateInput.value = dateString;
             if (!eventId) {
                 modalTitle.textContent = `在 ${dateString} 新增活動`;
-                eventIdInput.value = ''; eventColorInput.value = '#bee3f8'; deleteEventBtn.classList.add('hidden');
+                eventIdInput.value = ''; 
+                eventColorInput.value = '#bee3f8'; 
+                deleteEventBtn.classList.add('hidden');
+                renderTagCheckboxesForModal({});
             } else {
                 const event = allEvents.find(e => e.id === eventId); if (!event) return;
                 modalTitle.textContent = `編輯 ${dateString} 的活動`;
-                eventIdInput.value = event.id; eventNameInput.value = event.name; eventSpotsInput.value = event.spots;
-                eventUrlInput.value = event.url; eventColorInput.value = event.color || '#bee3f8';
-                eventCategorySelect.value = event.category;
-                populateTagSelect(event.category, event.tag);
+                eventIdInput.value = event.id; 
+                eventNameInput.value = event.name; 
+                eventSpotsInput.value = event.spots;
+                eventUrlInput.value = event.url; 
+                eventColorInput.value = event.color || '#bee3f8';
+                renderTagCheckboxesForModal(event.tags || {});
                 deleteEventBtn.classList.remove('hidden');
             }
             eventModal.classList.remove('hidden');
@@ -436,27 +438,55 @@
         }
         const closeModal = (modal, content) => { content.classList.add('scale-95', 'opacity-0'); setTimeout(() => modal.classList.add('hidden'), 200); };
         
-        function populateTagSelect(category, selectedTag = '') {
-            eventTagSelect.innerHTML = '<option value="">請選擇標籤</option>';
-            if (category && filterTags[category]) {
-                filterTags[category].forEach(tag => {
-                    const option = document.createElement('option');
-                    option.value = tag; option.textContent = tag;
-                    if (tag === selectedTag) option.selected = true;
-                    eventTagSelect.appendChild(option);
-                });
-                eventTagSelect.disabled = false;
-            } else {
-                eventTagSelect.disabled = true;
+        function renderTagCheckboxesForModal(selectedTags = {}) {
+            eventTagsContainer.innerHTML = '';
+            const categories = { activity: '活動類型', venue: '場地' };
+
+            for (const category in categories) {
+                if (filterTags[category] && filterTags[category].length > 0) {
+                    const fieldset = document.createElement('fieldset');
+                    fieldset.innerHTML = `<legend class="text-sm font-medium text-gray-900 mb-2">${categories[category]}</legend>`;
+                    
+                    const tagsWrapper = document.createElement('div');
+                    tagsWrapper.className = 'grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2';
+
+                    filterTags[category].forEach(tag => {
+                        const isChecked = selectedTags[category] && selectedTags[category].includes(tag);
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center';
+                        div.innerHTML = `
+                            <input id="tag-${category}-${tag}" data-category="${category}" name="tags" type="checkbox" value="${tag}" ${isChecked ? 'checked' : ''} class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <label for="tag-${category}-${tag}" class="ml-2 block text-sm text-gray-700">${tag}</label>
+                        `;
+                        tagsWrapper.appendChild(div);
+                    });
+
+                    fieldset.appendChild(tagsWrapper);
+                    eventTagsContainer.appendChild(fieldset);
+                }
             }
         }
 
         async function handleFormSubmit(e) {
             e.preventDefault();
             const eventId = eventIdInput.value;
+            
+            const selectedTags = { activity: [], venue: [] };
+            const checkedBoxes = eventTagsContainer.querySelectorAll('input[type="checkbox"]:checked');
+            checkedBoxes.forEach(box => {
+                const category = box.dataset.category;
+                if (selectedTags[category]) {
+                    selectedTags[category].push(box.value);
+                }
+            });
+
             const eventData = {
-                date: eventDateInput.value, name: eventNameInput.value, spots: parseInt(eventSpotsInput.value) || 0,
-                url: eventUrlInput.value, color: eventColorInput.value, category: eventCategorySelect.value, tag: eventTagSelect.value,
+                date: eventDateInput.value, 
+                name: eventNameInput.value, 
+                spots: parseInt(eventSpotsInput.value) || 0,
+                url: eventUrlInput.value, 
+                color: eventColorInput.value, 
+                tags: selectedTags,
             };
             try {
                 if (eventId) { await setDoc(doc(db, eventsCollectionRef.path, eventId), eventData); }
@@ -523,7 +553,6 @@
         deleteEventBtn.onclick = () => openDeleteModal('event', eventIdInput.value);
         confirmDeleteBtn.onclick = handleConfirmDelete;
         cancelDeleteBtn.onclick = () => closeModal(deleteConfirmModal, deleteConfirmModalContent);
-        eventCategorySelect.onchange = (e) => populateTagSelect(e.target.value);
 
         manageFiltersBtn.onclick = () => {
             filterManagerModal.classList.remove('hidden');
