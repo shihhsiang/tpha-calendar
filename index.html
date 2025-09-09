@@ -38,6 +38,13 @@
         .event-bubble:hover {
             filter: brightness(90%);
         }
+        /* 篩選按鈕樣式 */
+        .filter-btn { transition: all 0.2s ease; }
+        .filter-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -46,14 +53,20 @@
     <div id="main-container" class="w-full max-w-6xl bg-white rounded-xl shadow-lg p-4 sm:p-6 relative hidden">
         <!-- 月曆標頭 -->
         <div class="flex items-center justify-between mb-4 noselect">
-            <button id="prev-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors duration-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <h2 id="current-month-year" class="text-xl sm:text-2xl font-bold text-gray-800"></h2>
-            <button id="next-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors duration-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-            </button>
+            <div class="flex items-center space-x-2">
+                 <button id="prev-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <h2 id="current-month-year" class="text-xl sm:text-2xl font-bold text-gray-800 w-32 sm:w-auto text-center"></h2>
+                <button id="next-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+            <button id="manage-filters-btn" class="hidden px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">管理篩選</button>
         </div>
+
+        <!-- 篩選選單 -->
+        <div id="filter-container" class="mb-4 space-y-3"></div>
 
         <!-- 星期標頭 -->
         <div class="grid grid-cols-7 gap-1 text-center text-sm text-gray-500 font-medium noselect">
@@ -66,9 +79,7 @@
         <!-- 手機版活動列表 -->
         <div id="mobile-event-view" class="sm:hidden mt-4 border-t pt-4">
             <h3 id="mobile-event-date" class="font-bold text-gray-700 text-center mb-2"></h3>
-            <div id="mobile-event-list" class="space-y-2">
-                <!-- 活動會動態插入此處 -->
-            </div>
+            <div id="mobile-event-list" class="space-y-2"></div>
         </div>
 
         <!-- 使用者 ID 顯示 -->
@@ -82,9 +93,24 @@
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform scale-95 opacity-0 modal-content" id="event-modal-content">
             <h3 class="text-lg font-bold mb-4" id="modal-title">新增活動</h3>
             <form id="event-form">
-                <input type="hidden" id="event-id">
-                <input type="hidden" id="event-date">
-                <div>
+                <input type="hidden" id="event-id"><input type="hidden" id="event-date">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="event-category" class="block text-sm font-medium text-gray-700">分類</label>
+                        <select id="event-category" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                            <option value="">請選擇</option>
+                            <option value="activity">活動類型</option>
+                            <option value="venue">場地</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="event-tag" class="block text-sm font-medium text-gray-700">標籤</label>
+                        <select id="event-tag" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" disabled>
+                            <option value="">先選分類</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-4">
                     <label for="event-name" class="block text-sm font-medium text-gray-700">活動名稱</label>
                     <input type="text" id="event-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
@@ -101,19 +127,48 @@
                     <input type="color" id="event-color" value="#bee3f8" class="mt-1 block w-full h-10 border border-gray-300 rounded-md cursor-pointer">
                 </div>
                 <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" id="delete-event-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 hidden">刪除</button>
-                    <button type="button" id="cancel-event-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">取消</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">儲存</button>
+                    <button type="button" id="delete-event-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 hidden">刪除</button>
+                    <button type="button" id="cancel-event-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">儲存</button>
                 </div>
             </form>
         </div>
     </div>
     
-    <!-- ... 其他 Modal 維持不變 ... -->
+    <!-- 管理篩選 Modal -->
+    <div id="filter-manager-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform scale-95 opacity-0 modal-content" id="filter-manager-modal-content">
+            <h3 class="text-lg font-bold mb-4">管理篩選標籤</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <!-- 活動類型 -->
+                <div>
+                    <h4 class="font-semibold mb-2">活動類型</h4>
+                    <div id="activity-tags-list" class="space-y-2 mb-2"></div>
+                    <form class="flex space-x-2" data-category="activity">
+                        <input type="text" placeholder="新增活動類型標籤" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
+                        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">新增</button>
+                    </form>
+                </div>
+                <!-- 場地 -->
+                <div>
+                    <h4 class="font-semibold mb-2">場地</h4>
+                    <div id="venue-tags-list" class="space-y-2 mb-2"></div>
+                    <form class="flex space-x-2" data-category="venue">
+                        <input type="text" placeholder="新增場地標籤" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
+                        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">新增</button>
+                    </form>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button type="button" id="close-filter-manager-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">關閉</button>
+            </div>
+        </div>
+    </div>
+
     <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm transform scale-95 opacity-0 modal-content" id="delete-confirm-modal-content">
             <h3 class="text-lg font-bold mb-2">確認刪除</h3>
-            <p class="text-sm text-gray-600 mb-6">您確定要刪除這個活動嗎？此操作無法復原。</p>
+            <p class="text-sm text-gray-600 mb-6">您確定要刪除這個項目嗎？此操作無法復原。</p>
             <div class="flex justify-end space-x-3">
                 <button type="button" id="cancel-delete-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
                 <button type="button" id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">確認刪除</button>
@@ -132,7 +187,7 @@
     // --- 引入 Firebase SDK ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     document.addEventListener('DOMContentLoaded', () => {
         
@@ -157,6 +212,7 @@
         const mobileEventView = document.getElementById('mobile-event-view');
         const mobileEventList = document.getElementById('mobile-event-list');
         const mobileEventDate = document.getElementById('mobile-event-date');
+        const filterContainer = document.getElementById('filter-container');
         
         const eventModal = document.getElementById('event-modal');
         const eventModalContent = document.getElementById('event-modal-content');
@@ -168,6 +224,8 @@
         const eventSpotsInput = document.getElementById('event-spots');
         const eventUrlInput = document.getElementById('event-url');
         const eventColorInput = document.getElementById('event-color');
+        const eventCategorySelect = document.getElementById('event-category');
+        const eventTagSelect = document.getElementById('event-tag');
         const cancelEventBtn = document.getElementById('cancel-event-btn');
         const deleteEventBtn = document.getElementById('delete-event-btn');
         const deleteConfirmModal = document.getElementById('delete-confirm-modal');
@@ -175,28 +233,27 @@
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         
-        const formatDate = (date) => {
-            const year = date.getFullYear();
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+        const manageFiltersBtn = document.getElementById('manage-filters-btn');
+        const filterManagerModal = document.getElementById('filter-manager-modal');
+        const filterManagerModalContent = document.getElementById('filter-manager-modal-content');
+        const closeFilterManagerBtn = document.getElementById('close-filter-manager-btn');
+        const activityTagsList = document.getElementById('activity-tags-list');
+        const venueTagsList = document.getElementById('venue-tags-list');
+
+        const formatDate = (date) => `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 
         let currentDate = new Date();
         let allEvents = [];
-        let db, auth, eventsCollectionRef;
-        let eventToDeleteId = null;
+        let filterTags = { activity: [], venue: [] };
+        let activeFilter = null; // { category: 'activity', tag: '演唱會' }
+        let db, auth, eventsCollectionRef, filterTagsCollectionRef;
+        let itemToDelete = null; // { type: 'event'/'tag', id: '...', category: '...' }
         let selectedDateStr = formatDate(new Date());
-        let isAdmin = false;
-
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('admin') === 'true') {
-            isAdmin = true;
-        }
+        let isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
         async function initializeFirebase() {
-            if (firebaseConfig.apiKey === "請貼上您的 API Key") {
-                loadingOverlay.innerHTML = '<p class="text-red-500 text-center p-4">設定尚未完成！<br>請依照指示在 HTML 檔案中填入您自己的 Firebase 設定。</p>'; return;
+             if (firebaseConfig.apiKey.startsWith("請貼上")) {
+                loadingOverlay.innerHTML = '<p class="text-red-500 text-center p-4">設定尚未完成！<br>請在 HTML 檔案中填入您自己的 Firebase 設定。</p>'; return;
             }
             try {
                 const app = initializeApp(firebaseConfig);
@@ -205,14 +262,12 @@
                     if (user) {
                         userIdDisplay.textContent = user.uid.substring(0, 8) + '...';
                         if (isAdmin) {
-                             const adminBadge = document.createElement('div');
-                             adminBadge.textContent = '管理員模式';
-                             adminBadge.className = 'absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md';
-                             mainContainer.appendChild(adminBadge);
+                             mainContainer.insertAdjacentHTML('beforeend', '<div class="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md">管理員模式</div>');
+                             manageFiltersBtn.classList.remove('hidden');
                         }
-                        const collectionPath = `/calendars/${calendarId}/events`;
-                        eventsCollectionRef = collection(db, collectionPath);
-                        listenForEvents();
+                        eventsCollectionRef = collection(db, `/calendars/${calendarId}/events`);
+                        filterTagsCollectionRef = collection(db, `/calendars/${calendarId}/filterTags`);
+                        listenForData();
                         loadingOverlay.classList.add('hidden');
                         mainContainer.classList.remove('hidden');
                     }
@@ -220,56 +275,89 @@
                 await signInAnonymously(auth);
             } catch (error) {
                 console.error("Firebase 初始化失敗:", error);
-                loadingOverlay.innerHTML = '<p class="text-red-500">無法連接到資料庫，請檢查您的 Firebase 設定是否正確。</p>';
+                loadingOverlay.innerHTML = '<p class="text-red-500">無法連接到資料庫，請檢查您的 Firebase 設定。</p>';
             }
         }
 
-        function listenForEvents() {
+        function listenForData() {
             onSnapshot(eventsCollectionRef, (snapshot) => {
                 allEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderCalendar();
                 renderMobileEvents(selectedDateStr);
-            }, (error) => console.error("讀取活動資料時發生錯誤: ", error));
+            });
+            onSnapshot(filterTagsCollectionRef, (snapshot) => {
+                filterTags = { activity: [], venue: [] };
+                snapshot.forEach(doc => {
+                    if (doc.id === 'activity' || doc.id === 'venue') {
+                        filterTags[doc.id] = doc.data().tags || [];
+                    }
+                });
+                renderFilterControls();
+                renderTagManager();
+            });
+        }
+
+        function renderFilterControls() {
+            filterContainer.innerHTML = '';
+            const createCategoryFilters = (category, title) => {
+                if (!filterTags[category] || filterTags[category].length === 0) return;
+                const wrapper = document.createElement('div');
+                wrapper.className = "flex items-center flex-wrap gap-2";
+                wrapper.innerHTML = `<h4 class="font-semibold text-sm mr-2">${title}:</h4>`;
+                
+                const allBtn = document.createElement('button');
+                allBtn.textContent = '顯示全部';
+                allBtn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${!activeFilter ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
+                allBtn.onclick = () => { activeFilter = null; renderFilterControls(); renderCalendar(); };
+                wrapper.appendChild(allBtn);
+
+                filterTags[category].forEach(tag => {
+                    const btn = document.createElement('button');
+                    btn.textContent = tag;
+                    const isActive = activeFilter && activeFilter.category === category && activeFilter.tag === tag;
+                    btn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${isActive ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
+                    btn.onclick = () => {
+                        activeFilter = { category, tag };
+                        renderFilterControls();
+                        renderCalendar();
+                    };
+                    wrapper.appendChild(btn);
+                });
+                filterContainer.appendChild(wrapper);
+            };
+            createCategoryFilters('activity', '活動類型');
+            createCategoryFilters('venue', '場地');
         }
         
         function renderCalendar() {
             calendarGrid.innerHTML = '';
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
+            const year = currentDate.getFullYear(), month = currentDate.getMonth();
             currentMonthYear.textContent = `${year}年 ${month + 1}月`;
-            const firstDayOfMonth = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const eventsByDate = allEvents.reduce((acc, event) => {
+            
+            const filteredEvents = activeFilter ? allEvents.filter(e => e.category === activeFilter.category && e.tag === activeFilter.tag) : allEvents;
+            const eventsByDate = filteredEvents.reduce((acc, event) => {
                 (acc[event.date] = acc[event.date] || []).push(event); return acc;
             }, {});
 
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
             const daysInPrevMonth = new Date(year, month, 0).getDate();
-            for (let i = firstDayOfMonth; i > 0; i--) {
-                calendarGrid.appendChild(createDayCell(daysInPrevMonth - i + 1, true, null, eventsByDate));
-            }
+
+            for (let i = firstDayOfMonth; i > 0; i--) calendarGrid.appendChild(createDayCell(daysInPrevMonth - i + 1, true, null, {}));
             for (let i = 1; i <= daysInMonth; i++) {
                 const dateString = formatDate(new Date(year, month, i));
                 calendarGrid.appendChild(createDayCell(i, false, dateString, eventsByDate));
             }
             const totalCells = calendarGrid.children.length;
             const remainingCells = (totalCells > 35 ? 42 : 35) - totalCells;
-            for (let i = 1; i <= remainingCells; i++) {
-                calendarGrid.appendChild(createDayCell(i, true, null, eventsByDate));
-            }
+            for (let i = 1; i <= remainingCells; i++) calendarGrid.appendChild(createDayCell(i, true, null, {}));
         }
 
         function createDayCell(day, isOtherMonth, dateString, eventsByDate) {
             const cell = document.createElement('div');
             cell.className = `relative p-1 sm:p-2 border border-gray-200 bg-white rounded-md flex flex-col items-center justify-start sm:justify-start sm:items-stretch h-14 sm:h-28 transition-colors duration-200`;
-            const dayNumberContainer = document.createElement('div');
-            dayNumberContainer.className = 'w-full flex justify-center sm:justify-end';
+            cell.innerHTML = `<div class="w-full flex justify-center sm:justify-end"><div class="day-number">${day}</div></div>`;
             
-            const dayNumber = document.createElement('div');
-            dayNumber.className = 'day-number';
-            dayNumber.textContent = day;
-            dayNumberContainer.appendChild(dayNumber);
-            cell.appendChild(dayNumberContainer);
-
             if (isOtherMonth) {
                 cell.classList.add('other-month', 'bg-gray-50');
             } else {
@@ -278,75 +366,36 @@
                 if (dateString === selectedDateStr) cell.classList.add('mobile-selected');
                 
                 if (eventsByDate[dateString]) {
-                    const eventDot = document.createElement('div');
-                    eventDot.className = 'sm:hidden absolute bottom-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full';
-                    cell.appendChild(eventDot);
+                    cell.insertAdjacentHTML('beforeend', '<div class="sm:hidden absolute bottom-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full"></div>');
+                    const desktopEventList = document.createElement('div');
+                    desktopEventList.className = 'hidden sm:block mt-1 space-y-1 overflow-y-auto max-h-20 event-list pr-1';
+                    eventsByDate[dateString].forEach(event => desktopEventList.appendChild(createEventBubble(event)));
+                    cell.appendChild(desktopEventList);
                 }
-
-                const desktopEventList = document.createElement('div');
-                desktopEventList.className = 'hidden sm:block mt-1 space-y-1 overflow-y-auto max-h-20 event-list pr-1';
-                if (eventsByDate[dateString]) {
-                    eventsByDate[dateString].forEach(event => {
-                        desktopEventList.appendChild(createEventBubble(event));
-                    });
-                }
-                cell.appendChild(desktopEventList);
-
                 cell.addEventListener('click', (e) => {
                     if (!e.target.closest('.event-bubble')) {
                         selectedDateStr = dateString;
-                        renderCalendar(); 
+                        document.querySelectorAll('.mobile-selected').forEach(c => c.classList.remove('mobile-selected'));
+                        cell.classList.add('mobile-selected');
                         renderMobileEvents(dateString);
-                        if (isAdmin && window.innerWidth >= 640) {
-                            openModal(dateString);
-                        }
+                        if (isAdmin && window.innerWidth >= 640) openModal(dateString);
                     }
                 });
             }
             return cell;
         }
         
-        function getTextColorForBackground(hexColor) {
-            const r = parseInt(hexColor.slice(1, 3), 16);
-            const g = parseInt(hexColor.slice(3, 5), 16);
-            const b = parseInt(hexColor.slice(5, 7), 16);
-            const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-            return (yiq >= 128) ? '#000000' : '#FFFFFF';
-        }
+        const getTextColorForBackground = (hex) => (parseInt(hex.slice(1), 16) > 0xffffff / 2) ? '#000000' : '#FFFFFF';
 
         function createEventBubble(event) {
             const bubble = document.createElement('div');
-            const urlIsValid = event.url && (event.url.startsWith('http://') || event.url.startsWith('https://'));
-            
-            bubble.className = `event-bubble text-xs p-1.5 rounded-lg flex items-start justify-between space-x-2 ${isAdmin || !urlIsValid ? 'cursor-pointer' : 'cursor-pointer'}`;
-            bubble.title = isAdmin ? `${event.name}\n名額: ${event.spots}\n點擊編輯` : `${event.name}\n名額: ${event.spots}\n點擊前往報名頁面`;
-
-            const bgColor = event.color || '#bee3f8';
-            const textColor = getTextColorForBackground(bgColor);
-            bubble.style.backgroundColor = bgColor;
-            bubble.style.color = textColor;
-
-            const nameSpan = document.createElement('span');
-            // *** 修改：使用 truncate 讓文字不要換行，並在過長時顯示 ... ***
-            nameSpan.className = 'font-semibold truncate'; 
-            nameSpan.textContent = event.name;
-            const spotsBadge = document.createElement('span');
-            spotsBadge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0';
-            spotsBadge.style.backgroundColor = textColor;
-            spotsBadge.style.color = bgColor;
-            spotsBadge.textContent = event.spots;
-
-            bubble.appendChild(nameSpan);
-            bubble.appendChild(spotsBadge);
-
-            bubble.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (isAdmin) {
-                    openModal(event.date, event.id);
-                } else if (urlIsValid) {
-                    window.open(event.url, '_blank');
-                }
-            });
+            const urlIsValid = event.url && event.url.startsWith('https');
+            bubble.className = `event-bubble text-xs p-1.5 rounded-lg flex items-center justify-between space-x-2 ${isAdmin || !urlIsValid ? 'cursor-pointer' : ''}`;
+            bubble.title = `${event.name}\n名額: ${event.spots}\n${isAdmin ? '點擊編輯' : '點擊前往報名'}`;
+            const bgColor = event.color || '#bee3f8', textColor = getTextColorForBackground(bgColor);
+            bubble.style.cssText = `background-color:${bgColor}; color:${textColor};`;
+            bubble.innerHTML = `<span class="font-semibold truncate">${event.name}</span><span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style="background-color:${textColor};color:${bgColor};">${event.spots}</span>`;
+            bubble.onclick = (e) => { e.stopPropagation(); if (isAdmin) openModal(event.date, event.id); else if (urlIsValid) window.open(event.url, '_blank'); };
             return bubble;
         }
 
@@ -357,88 +406,135 @@
             mobileEventList.innerHTML = '';
             const events = allEvents.filter(e => e.date === dateString);
             if (events.length > 0) {
-                events.forEach(event => { mobileEventList.appendChild(createEventBubble(event)); });
+                events.forEach(event => mobileEventList.appendChild(createEventBubble(event)));
             } else {
                 mobileEventList.innerHTML = '<p class="text-center text-gray-500 text-sm">這天沒有活動</p>';
             }
             if (isAdmin) {
-                const addBtn = document.createElement('button');
-                addBtn.textContent = '＋ 新增活動';
-                addBtn.className = 'w-full mt-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 text-sm font-semibold';
-                addBtn.onclick = () => openModal(dateString);
-                mobileEventList.appendChild(addBtn);
+                mobileEventList.insertAdjacentHTML('beforeend', '<button id="mobile-add-event" class="w-full mt-2 px-4 py-2 bg-green-500 text-white rounded-md text-sm font-semibold">＋ 新增活動</button>');
+                document.getElementById('mobile-add-event').onclick = () => openModal(dateString);
             }
         }
         
         function openModal(dateString, eventId = null) {
-            eventForm.reset();
+            eventForm.reset(); eventTagSelect.innerHTML = '<option value="">先選分類</option>'; eventTagSelect.disabled = true;
             eventDateInput.value = dateString;
             if (!eventId) {
                 modalTitle.textContent = `在 ${dateString} 新增活動`;
-                eventIdInput.value = '';
-                eventColorInput.value = '#bee3f8';
-                deleteEventBtn.classList.add('hidden');
+                eventIdInput.value = ''; eventColorInput.value = '#bee3f8'; deleteEventBtn.classList.add('hidden');
             } else {
-                const event = allEvents.find(e => e.id === eventId);
-                if (!event) return;
+                const event = allEvents.find(e => e.id === eventId); if (!event) return;
                 modalTitle.textContent = `編輯 ${dateString} 的活動`;
-                eventIdInput.value = event.id;
-                eventNameInput.value = event.name;
-                eventSpotsInput.value = event.spots;
-                eventUrlInput.value = event.url;
-                eventColorInput.value = event.color || '#bee3f8';
+                eventIdInput.value = event.id; eventNameInput.value = event.name; eventSpotsInput.value = event.spots;
+                eventUrlInput.value = event.url; eventColorInput.value = event.color || '#bee3f8';
+                eventCategorySelect.value = event.category;
+                populateTagSelect(event.category, event.tag);
                 deleteEventBtn.classList.remove('hidden');
             }
             eventModal.classList.remove('hidden');
             setTimeout(() => { eventModalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
         }
-        function closeModal(modalElement, modalContentElement) {
-            modalContentElement.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => { modalElement.classList.add('hidden'); }, 200);
+        const closeModal = (modal, content) => { content.classList.add('scale-95', 'opacity-0'); setTimeout(() => modal.classList.add('hidden'), 200); };
+        
+        function populateTagSelect(category, selectedTag = '') {
+            eventTagSelect.innerHTML = '<option value="">請選擇標籤</option>';
+            if (category && filterTags[category]) {
+                filterTags[category].forEach(tag => {
+                    const option = document.createElement('option');
+                    option.value = tag; option.textContent = tag;
+                    if (tag === selectedTag) option.selected = true;
+                    eventTagSelect.appendChild(option);
+                });
+                eventTagSelect.disabled = false;
+            } else {
+                eventTagSelect.disabled = true;
+            }
         }
+
         async function handleFormSubmit(e) {
             e.preventDefault();
             const eventId = eventIdInput.value;
             const eventData = {
-                date: eventDateInput.value, name: eventNameInput.value,
-                spots: parseInt(eventSpotsInput.value) || 0, url: eventUrlInput.value,
-                color: eventColorInput.value,
+                date: eventDateInput.value, name: eventNameInput.value, spots: parseInt(eventSpotsInput.value) || 0,
+                url: eventUrlInput.value, color: eventColorInput.value, category: eventCategorySelect.value, tag: eventTagSelect.value,
             };
             try {
                 if (eventId) { await setDoc(doc(db, eventsCollectionRef.path, eventId), eventData); }
                 else { await addDoc(eventsCollectionRef, eventData); }
                 closeModal(eventModal, eventModalContent);
-            } catch (error) {
-                console.error("儲存活動失敗: ", error);
-                alert("儲存失敗，請檢查網路連線後再試。");
-            }
+            } catch (error) { console.error("儲存活動失敗: ", error); }
         }
-        async function handleDeleteEvent() {
-            if (!eventToDeleteId) return;
+
+        function openDeleteModal(type, id, category = null) {
+            itemToDelete = { type, id, category };
+            deleteConfirmModal.classList.remove('hidden');
+            setTimeout(() => deleteConfirmModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
+        async function handleConfirmDelete() {
+            if (!itemToDelete) return;
             try {
-                await deleteDoc(doc(db, eventsCollectionRef.path, eventToDeleteId));
-                closeModal(deleteConfirmModal, deleteConfirmModalContent);
-                eventToDeleteId = null;
-            } catch (error) {
-                console.error("刪除活動失敗: ", error);
-                alert("刪除失敗，請檢查網路連線後再試。");
+                if (itemToDelete.type === 'event') {
+                    await deleteDoc(doc(db, eventsCollectionRef.path, itemToDelete.id));
+                } else if (itemToDelete.type === 'tag') {
+                    const tagDocRef = doc(db, filterTagsCollectionRef.path, itemToDelete.category);
+                    await setDoc(tagDocRef, { tags: arrayRemove(itemToDelete.id) }, { merge: true });
+                }
+            } catch (error) { console.error("刪除失敗:", error); }
+            finally { closeModal(deleteConfirmModal, deleteConfirmModalContent); itemToDelete = null; }
+        }
+        
+        function renderTagManager() {
+            const createTagList = (container, category) => {
+                container.innerHTML = '';
+                if (!filterTags[category] || filterTags[category].length === 0) {
+                    container.innerHTML = '<p class="text-xs text-gray-500">尚無標籤</p>'; return;
+                }
+                filterTags[category].forEach(tag => {
+                    const tagEl = document.createElement('div');
+                    tagEl.className = 'flex items-center justify-between bg-gray-100 p-1.5 rounded text-sm';
+                    tagEl.innerHTML = `<span>${tag}</span><button class="text-red-500 hover:text-red-700">&times;</button>`;
+                    tagEl.querySelector('button').onclick = () => openDeleteModal('tag', tag, category);
+                    container.appendChild(tagEl);
+                });
+            };
+            createTagList(activityTagsList, 'activity');
+            createTagList(venueTagsList, 'venue');
+        }
+
+        async function handleAddTag(e) {
+            e.preventDefault();
+            const form = e.target;
+            const category = form.dataset.category;
+            const input = form.querySelector('input');
+            const newTag = input.value.trim();
+            if (newTag && !filterTags[category].includes(newTag)) {
+                const tagDocRef = doc(db, filterTagsCollectionRef.path, category);
+                await setDoc(tagDocRef, { tags: arrayUnion(newTag) }, { merge: true });
+                input.value = '';
             }
         }
         
-        prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
-        nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-        eventForm.addEventListener('submit', handleFormSubmit);
-        cancelEventBtn.addEventListener('click', () => closeModal(eventModal, eventModalContent));
-        eventModal.addEventListener('click', (e) => { if (e.target === eventModal) closeModal(eventModal, eventModalContent); });
-        deleteEventBtn.addEventListener('click', () => {
-            eventToDeleteId = eventIdInput.value;
-            closeModal(eventModal, eventModalContent);
-            deleteConfirmModal.classList.remove('hidden');
-            setTimeout(() => { deleteConfirmModalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
+        // --- Event Listeners ---
+        prevMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
+        nextMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
+        eventForm.onsubmit = handleFormSubmit;
+        cancelEventBtn.onclick = () => closeModal(eventModal, eventModalContent);
+        deleteEventBtn.onclick = () => openDeleteModal('event', eventIdInput.value);
+        confirmDeleteBtn.onclick = handleConfirmDelete;
+        cancelDeleteBtn.onclick = () => closeModal(deleteConfirmModal, deleteConfirmModalContent);
+        eventCategorySelect.onchange = (e) => populateTagSelect(e.target.value);
+
+        manageFiltersBtn.onclick = () => {
+            filterManagerModal.classList.remove('hidden');
+            setTimeout(() => filterManagerModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        };
+        closeFilterManagerBtn.onclick = () => closeModal(filterManagerModal, filterManagerModalContent);
+        document.querySelectorAll('#filter-manager-modal form').forEach(form => form.onsubmit = handleAddTag);
+        
+        [eventModal, deleteConfirmModal, filterManagerModal].forEach(modal => {
+            modal.onclick = (e) => { if (e.target === modal) closeModal(modal, modal.querySelector('.modal-content')); };
         });
-        cancelDeleteBtn.addEventListener('click', () => closeModal(deleteConfirmModal, deleteConfirmModalContent));
-        confirmDeleteBtn.addEventListener('click', handleDeleteEvent);
-        deleteConfirmModal.addEventListener('click', (e) => { if(e.target === deleteConfirmModal) closeModal(deleteConfirmModal, deleteConfirmModalContent); });
 
         initializeFirebase();
     });
