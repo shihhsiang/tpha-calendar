@@ -234,7 +234,7 @@
         let currentDate = new Date();
         let allEvents = [];
         let filterTags = { activity: [], venue: [] };
-        let activeFilter = null; // { category: 'activity', tag: '演唱會' }
+        let activeFilters = { activity: [], venue: [] };
         let db, auth, eventsCollectionRef, filterTagsCollectionRef;
         let itemToDelete = null; // { type: 'event'/'tag', id: '...', category: '...' }
         let selectedDateStr = formatDate(new Date());
@@ -296,17 +296,28 @@
                 
                 const allBtn = document.createElement('button');
                 allBtn.textContent = '顯示全部';
-                allBtn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${!activeFilter ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
-                allBtn.onclick = () => { activeFilter = null; renderFilterControls(); renderCalendar(); renderMobileEvents(selectedDateStr); };
+                const hasActiveFilters = activeFilters.activity.length > 0 || activeFilters.venue.length > 0;
+                allBtn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${!hasActiveFilters ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
+                allBtn.onclick = () => { 
+                    activeFilters = { activity: [], venue: [] }; 
+                    renderFilterControls(); 
+                    renderCalendar(); 
+                    renderMobileEvents(selectedDateStr); 
+                };
                 wrapper.appendChild(allBtn);
 
                 filterTags[category].forEach(tag => {
                     const btn = document.createElement('button');
                     btn.textContent = tag;
-                    const isActive = activeFilter && activeFilter.category === category && activeFilter.tag === tag;
+                    const isActive = activeFilters[category].includes(tag);
                     btn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${isActive ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
                     btn.onclick = () => {
-                        activeFilter = { category, tag };
+                        const tagIndex = activeFilters[category].indexOf(tag);
+                        if (tagIndex > -1) {
+                            activeFilters[category].splice(tagIndex, 1);
+                        } else {
+                            activeFilters[category].push(tag);
+                        }
                         renderFilterControls();
                         renderCalendar();
                         renderMobileEvents(selectedDateStr);
@@ -324,8 +335,16 @@
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             currentMonthYear.textContent = `${year}年 ${month + 1}月`;
             
-            const filteredEvents = activeFilter 
-                ? allEvents.filter(e => e.tags && e.tags[activeFilter.category] && e.tags[activeFilter.category].includes(activeFilter.tag))
+            const hasActiveFilters = activeFilters.activity.length > 0 || activeFilters.venue.length > 0;
+            const filteredEvents = hasActiveFilters 
+                ? allEvents.filter(event => {
+                    if (!event.tags) return false;
+                    const activityMatch = activeFilters.activity.length === 0 || 
+                        (event.tags.activity && activeFilters.activity.some(tag => event.tags.activity.includes(tag)));
+                    const venueMatch = activeFilters.venue.length === 0 || 
+                        (event.tags.venue && activeFilters.venue.some(tag => event.tags.venue.includes(tag)));
+                    return activityMatch && venueMatch;
+                })
                 : allEvents;
             const eventsByDate = filteredEvents.reduce((acc, event) => {
                 (acc[event.date] = acc[event.date] || []).push(event); return acc;
@@ -397,8 +416,16 @@
             mobileEventDate.textContent = `${dateObj.getFullYear()}年 ${dateObj.getMonth() + 1}月 ${dateObj.getDate()}日`;
             mobileEventList.innerHTML = '';
             
-            const filteredEvents = activeFilter 
-                ? allEvents.filter(e => e.tags && e.tags[activeFilter.category] && e.tags[activeFilter.category].includes(activeFilter.tag))
+            const hasActiveFilters = activeFilters.activity.length > 0 || activeFilters.venue.length > 0;
+            const filteredEvents = hasActiveFilters 
+                ? allEvents.filter(event => {
+                    if (!event.tags) return false;
+                    const activityMatch = activeFilters.activity.length === 0 || 
+                        (event.tags.activity && activeFilters.activity.some(tag => event.tags.activity.includes(tag)));
+                    const venueMatch = activeFilters.venue.length === 0 || 
+                        (event.tags.venue && activeFilters.venue.some(tag => event.tags.venue.includes(tag)));
+                    return activityMatch && venueMatch;
+                })
                 : allEvents;
             const events = filteredEvents.filter(e => e.date === dateString);
 
