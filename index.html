@@ -34,9 +34,13 @@
         /* 轉場動畫 */
         .modal-content { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
         /* 活動懸停效果 */
-        .event-bubble { transition: filter 0.2s ease; }
+        .event-bubble { transition: all 0.2s ease; }
         .event-bubble:hover {
             filter: brightness(90%);
+        }
+        .event-expired {
+            filter: grayscale(80%);
+            opacity: 0.7;
         }
         /* 篩選按鈕樣式 */
         .filter-btn { transition: all 0.2s ease; }
@@ -93,14 +97,30 @@
 
     <!-- 編輯/新增活動 Modal -->
     <div id="event-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform scale-95 opacity-0 modal-content" id="event-modal-content">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform scale-95 opacity-0 modal-content" id="event-modal-content">
             <h3 class="text-lg font-bold mb-4" id="modal-title">新增活動</h3>
-            <form id="event-form">
+            <form id="event-form" class="max-h-[80vh] overflow-y-auto pr-2">
                 <input type="hidden" id="event-id"><input type="hidden" id="event-date">
                 
-                <div>
-                    <label for="event-name" class="block text-sm font-medium text-gray-700">活動名稱</label>
-                    <input type="text" id="event-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="event-name" class="block text-sm font-medium text-gray-700">活動名稱</label>
+                        <input type="text" id="event-name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="event-time" class="block text-sm font-medium text-gray-700">時間</label>
+                        <input type="time" id="event-time" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label for="event-location" class="block text-sm font-medium text-gray-700">地點</label>
+                    <input type="text" id="event-location" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                
+                <div class="mt-4">
+                    <label for="event-description" class="block text-sm font-medium text-gray-700">活動詳細描述</label>
+                    <textarea id="event-description" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
                 </div>
                 
                 <div id="event-tags-container" class="mt-4 space-y-3 max-h-32 overflow-y-auto border p-3 rounded-md bg-gray-50">
@@ -128,31 +148,45 @@
         </div>
     </div>
     
+    <!-- 活動詳情 Modal -->
+    <div id="event-details-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform scale-95 opacity-0 modal-content relative" id="event-details-modal-content">
+            <button id="close-details-btn" class="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-800">&times;</button>
+            <h3 id="details-name" class="text-xl font-bold mb-2"></h3>
+            <div class="text-sm text-gray-600 space-y-1 mb-4">
+                <p><strong>日期:</strong> <span id="details-date"></span></p>
+                <p><strong>時間:</strong> <span id="details-time"></span></p>
+                <p><strong>地點:</strong> <span id="details-location"></span></p>
+            </div>
+            <p id="details-description" class="text-gray-800 whitespace-pre-wrap bg-gray-50 p-3 rounded-md max-h-48 overflow-y-auto"></p>
+            <div class="mt-6 flex justify-end">
+                <a id="details-url-btn" href="#" target="_blank" rel="noopener noreferrer" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">前往報名</a>
+            </div>
+        </div>
+    </div>
+
     <!-- 管理篩選 Modal -->
     <div id="filter-manager-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform scale-95 opacity-0 modal-content" id="filter-manager-modal-content">
-            <h3 class="text-lg font-bold mb-4">管理篩選標籤</h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <!-- 活動類型 -->
-                <div>
-                    <h4 class="font-semibold mb-2">活動類型</h4>
-                    <div id="activity-tags-list" class="space-y-2 mb-2"></div>
-                    <form class="flex space-x-2" data-category="activity">
-                        <input type="text" placeholder="新增活動類型標籤" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
-                        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">新增</button>
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl transform scale-95 opacity-0 modal-content" id="filter-manager-modal-content">
+             <div class="max-h-[80vh] overflow-y-auto pr-4">
+                <h3 class="text-lg font-bold mb-4">管理篩選</h3>
+                
+                <!-- 管理分類 -->
+                <div class="mb-6 p-4 border rounded-md">
+                    <h4 class="font-semibold mb-2 text-gray-800">管理篩選分類</h4>
+                    <div id="category-manager-list" class="space-y-2 mb-3"></div>
+                    <form id="add-category-form" class="flex space-x-2">
+                        <input type="text" id="new-category-name" placeholder="新增分類名稱 (例如: 講師)" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
+                        <button type="submit" class="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm whitespace-nowrap">新增分類</button>
                     </form>
                 </div>
-                <!-- 場地 -->
-                <div>
-                    <h4 class="font-semibold mb-2">場地</h4>
-                    <div id="venue-tags-list" class="space-y-2 mb-2"></div>
-                    <form class="flex space-x-2" data-category="venue">
-                        <input type="text" placeholder="新增場地標籤" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
-                        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">新增</button>
-                    </form>
+
+                <!-- 管理標籤 -->
+                <div id="tag-manager-container" class="space-y-6">
+                    <!-- 動態生成標籤管理區塊 -->
                 </div>
             </div>
-            <div class="mt-6 flex justify-end">
+            <div class="mt-6 flex justify-end pt-4 border-t">
                 <button type="button" id="close-filter-manager-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">關閉</button>
             </div>
         </div>
@@ -180,7 +214,7 @@
     // --- 引入 Firebase SDK ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     document.addEventListener('DOMContentLoaded', () => {
         
@@ -215,6 +249,9 @@
         const eventIdInput = document.getElementById('event-id');
         const eventDateInput = document.getElementById('event-date');
         const eventNameInput = document.getElementById('event-name');
+        const eventTimeInput = document.getElementById('event-time');
+        const eventLocationInput = document.getElementById('event-location');
+        const eventDescriptionInput = document.getElementById('event-description');
         const eventSpotsInput = document.getElementById('event-spots');
         const eventUrlInput = document.getElementById('event-url');
         const eventColorInput = document.getElementById('event-color');
@@ -226,21 +263,33 @@
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         
+        const eventDetailsModal = document.getElementById('event-details-modal');
+        const eventDetailsModalContent = document.getElementById('event-details-modal-content');
+        const closeDetailsBtn = document.getElementById('close-details-btn');
+        const detailsName = document.getElementById('details-name');
+        const detailsDate = document.getElementById('details-date');
+        const detailsTime = document.getElementById('details-time');
+        const detailsLocation = document.getElementById('details-location');
+        const detailsDescription = document.getElementById('details-description');
+        const detailsUrlBtn = document.getElementById('details-url-btn');
+
         const manageFiltersBtn = document.getElementById('manage-filters-btn');
         const filterManagerModal = document.getElementById('filter-manager-modal');
         const filterManagerModalContent = document.getElementById('filter-manager-modal-content');
         const closeFilterManagerBtn = document.getElementById('close-filter-manager-btn');
-        const activityTagsList = document.getElementById('activity-tags-list');
-        const venueTagsList = document.getElementById('venue-tags-list');
+        const categoryManagerList = document.getElementById('category-manager-list');
+        const addCategoryForm = document.getElementById('add-category-form');
+        const tagManagerContainer = document.getElementById('tag-manager-container');
 
         const formatDate = (date) => `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 
         let currentDate = new Date();
         let allEvents = [];
-        let filterTags = { activity: [], venue: [] };
-        let activeFilters = { activity: [], venue: [] };
-        let db, auth, eventsCollectionRef, filterTagsCollectionRef;
-        let itemToDelete = null; // { type: 'event'/'tag', id: '...', category: '...' }
+        let filterCategories = [];
+        let filterTags = {};
+        let activeFilters = {};
+        let db, auth, eventsCollectionRef, categoriesDocRef;
+        let itemToDelete = null; 
         let selectedDateStr = formatDate(new Date());
         let isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
@@ -259,7 +308,7 @@
                              manageFiltersBtn.classList.remove('hidden');
                         }
                         eventsCollectionRef = collection(db, `/calendars/${calendarId}/events`);
-                        filterTagsCollectionRef = collection(db, `/calendars/${calendarId}/filterTags`);
+                        categoriesDocRef = doc(db, `/calendars/${calendarId}/config/categories`);
                         listenForData();
                         loadingOverlay.classList.add('hidden');
                         mainContainer.classList.remove('hidden');
@@ -282,49 +331,54 @@
                 renderCalendar();
                 renderMobileEvents(selectedDateStr);
             });
-            onSnapshot(filterTagsCollectionRef, (snapshot) => {
-                filterTags = { activity: [], venue: [] };
-                snapshot.forEach(doc => {
-                    if (doc.id === 'activity' || doc.id === 'venue') {
-                        filterTags[doc.id] = doc.data().tags || [];
-                    }
-                });
+            onSnapshot(categoriesDocRef, (snapshot) => {
+                filterCategories = snapshot.exists() ? snapshot.data().list || [] : [];
+                initializeActiveFilters();
                 renderFilterControls();
                 renderTagManager();
+                 // Listen to tags for each category
+                filterCategories.forEach(cat => {
+                    listenForTags(cat.id);
+                });
             });
+        }
+        
+        function listenForTags(categoryId) {
+            const tagsDocRef = doc(db, `/calendars/${calendarId}/filterTags/${categoryId}`);
+            onSnapshot(tagsDocRef, (snapshot) => {
+                filterTags[categoryId] = snapshot.exists() ? snapshot.data().tags || [] : [];
+                renderFilterControls(); // Re-render controls when tags change
+                renderTagManager(); // Re-render manager UI
+            });
+        }
+        
+        function initializeActiveFilters() {
+            const newActiveFilters = {};
+            filterCategories.forEach(cat => {
+                newActiveFilters[cat.id] = activeFilters[cat.id] || [];
+            });
+            activeFilters = newActiveFilters;
         }
 
         function renderFilterControls() {
             filterContainer.innerHTML = '';
-            const createCategoryFilters = (category, title) => {
-                if (!filterTags[category] || filterTags[category].length === 0) return;
+            filterCategories.forEach(category => {
+                if (!filterTags[category.id] || filterTags[category.id].length === 0) return;
                 const wrapper = document.createElement('div');
                 wrapper.className = "flex items-center flex-wrap gap-2";
-                wrapper.innerHTML = `<h4 class="font-semibold text-sm mr-2">${title}:</h4>`;
+                wrapper.innerHTML = `<h4 class="font-semibold text-sm mr-2">${category.name}:</h4>`;
                 
-                const allBtn = document.createElement('button');
-                allBtn.textContent = '顯示全部';
-                const hasActiveFilters = activeFilters.activity.length > 0 || activeFilters.venue.length > 0;
-                allBtn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${!hasActiveFilters ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
-                allBtn.onclick = () => { 
-                    activeFilters = { activity: [], venue: [] }; 
-                    renderFilterControls(); 
-                    renderCalendar(); 
-                    renderMobileEvents(selectedDateStr); 
-                };
-                wrapper.appendChild(allBtn);
-
-                filterTags[category].forEach(tag => {
+                filterTags[category.id].forEach(tag => {
                     const btn = document.createElement('button');
                     btn.textContent = tag;
-                    const isActive = activeFilters[category].includes(tag);
+                    const isActive = activeFilters[category.id] && activeFilters[category.id].includes(tag);
                     btn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${isActive ? 'active' : 'bg-gray-100 hover:bg-gray-200'}`;
                     btn.onclick = () => {
-                        const tagIndex = activeFilters[category].indexOf(tag);
+                        const tagIndex = activeFilters[category.id].indexOf(tag);
                         if (tagIndex > -1) {
-                            activeFilters[category].splice(tagIndex, 1);
+                            activeFilters[category.id].splice(tagIndex, 1);
                         } else {
-                            activeFilters[category].push(tag);
+                            activeFilters[category.id].push(tag);
                         }
                         renderFilterControls();
                         renderCalendar();
@@ -333,9 +387,21 @@
                     wrapper.appendChild(btn);
                 });
                 filterContainer.appendChild(wrapper);
-            };
-            createCategoryFilters('activity', '活動類型');
-            createCategoryFilters('venue', '場地');
+            });
+             if (filterContainer.children.length > 0) {
+                const allBtn = document.createElement('button');
+                allBtn.textContent = '清除所有篩選';
+                const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
+                allBtn.className = `filter-btn px-2.5 py-1 text-xs rounded-full border ${!hasActiveFilters ? 'active' : 'bg-gray-100 hover:bg-gray-200'} mt-2`;
+                allBtn.onclick = () => { 
+                    initializeActiveFilters();
+                    Object.keys(activeFilters).forEach(key => activeFilters[key] = []);
+                    renderFilterControls(); 
+                    renderCalendar(); 
+                    renderMobileEvents(selectedDateStr); 
+                };
+                filterContainer.insertAdjacentElement('afterbegin', allBtn);
+            }
         }
         
         function renderCalendar() {
@@ -343,15 +409,18 @@
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             currentMonthYear.textContent = `${year}年 ${month + 1}月`;
             
-            const hasActiveFilters = activeFilters.activity.length > 0 || activeFilters.venue.length > 0;
+            const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
             const filteredEvents = hasActiveFilters 
                 ? allEvents.filter(event => {
                     if (!event.tags) return false;
-                    const activityMatch = activeFilters.activity.length === 0 || 
-                        (event.tags.activity && activeFilters.activity.some(tag => event.tags.activity.includes(tag)));
-                    const venueMatch = activeFilters.venue.length === 0 || 
-                        (event.tags.venue && activeFilters.venue.some(tag => event.tags.venue.includes(tag)));
-                    return activityMatch && venueMatch;
+                    // AND logic across categories
+                    return Object.keys(activeFilters).every(categoryId => {
+                        const selectedTags = activeFilters[categoryId];
+                        if (selectedTags.length === 0) return true; // No filter for this category, so it passes
+                        if (!event.tags[categoryId] || event.tags[categoryId].length === 0) return false; // Event has no tags for this category
+                        // OR logic within a category
+                        return selectedTags.some(tag => event.tags[categoryId].includes(tag));
+                    });
                 })
                 : allEvents;
             const eventsByDate = filteredEvents.reduce((acc, event) => {
@@ -424,14 +493,18 @@
 
         function createEventBubble(event) {
             const bubble = document.createElement('div');
-            const urlIsValid = event.url && event.url.startsWith('https');
-            bubble.className = `event-bubble text-xs p-1.5 rounded-lg flex flex-col items-start justify-start space-y-1 ${isAdmin || !urlIsValid ? 'cursor-pointer' : ''}`;
-            bubble.title = `${event.name}\n${isAdmin ? '點擊編輯' : '點擊前往報名'}`;
+            const todayStr = formatDate(new Date());
+            const isExpired = event.date < todayStr;
+            bubble.className = `event-bubble text-xs p-1.5 rounded-lg flex flex-col items-start justify-start space-y-1 cursor-pointer`;
+            if (isExpired) {
+                bubble.classList.add('event-expired');
+            }
+            bubble.title = `${event.name}\n${isAdmin ? '點擊編輯' : '點擊查看詳情'}`;
             const bgColor = event.color || '#bee3f8', textColor = getTextColorForBackground(bgColor);
             bubble.style.cssText = `background-color:${bgColor}; color:${textColor};`;
             const statusIndicatorHTML = getStatusIndicatorHTML(event.spots);
             bubble.innerHTML = `<span class="font-semibold">${event.name}</span>${statusIndicatorHTML}`;
-            bubble.onclick = (e) => { e.stopPropagation(); if (isAdmin) openModal(event.date, event.id); else if (urlIsValid) window.open(event.url, '_blank'); };
+            bubble.onclick = (e) => { e.stopPropagation(); if (isAdmin) openModal(event.date, event.id); else openDetailsModal(event); };
             return bubble;
         }
 
@@ -441,15 +514,16 @@
             mobileEventDate.textContent = `${dateObj.getFullYear()}年 ${dateObj.getMonth() + 1}月 ${dateObj.getDate()}日`;
             mobileEventList.innerHTML = '';
             
-            const hasActiveFilters = activeFilters.activity.length > 0 || activeFilters.venue.length > 0;
+            const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
             const filteredEvents = hasActiveFilters 
                 ? allEvents.filter(event => {
                     if (!event.tags) return false;
-                    const activityMatch = activeFilters.activity.length === 0 || 
-                        (event.tags.activity && activeFilters.activity.some(tag => event.tags.activity.includes(tag)));
-                    const venueMatch = activeFilters.venue.length === 0 || 
-                        (event.tags.venue && activeFilters.venue.some(tag => event.tags.venue.includes(tag)));
-                    return activityMatch && venueMatch;
+                    return Object.keys(activeFilters).every(categoryId => {
+                        const selectedTags = activeFilters[categoryId];
+                        if (selectedTags.length === 0) return true;
+                        if (!event.tags[categoryId] || event.tags[categoryId].length === 0) return false;
+                        return selectedTags.some(tag => event.tags[categoryId].includes(tag));
+                    });
                 })
                 : allEvents;
             const events = filteredEvents.filter(e => e.date === dateString);
@@ -478,7 +552,10 @@
                 const event = allEvents.find(e => e.id === eventId); if (!event) return;
                 modalTitle.textContent = `編輯 ${dateString} 的活動`;
                 eventIdInput.value = event.id; 
-                eventNameInput.value = event.name; 
+                eventNameInput.value = event.name;
+                eventTimeInput.value = event.time || '';
+                eventLocationInput.value = event.location || '';
+                eventDescriptionInput.value = event.description || '';
                 eventSpotsInput.value = event.spots;
                 eventUrlInput.value = event.url; 
                 eventColorInput.value = event.color || '#bee3f8';
@@ -490,25 +567,39 @@
         }
         const closeModal = (modal, content) => { content.classList.add('scale-95', 'opacity-0'); setTimeout(() => modal.classList.add('hidden'), 200); };
         
+        function openDetailsModal(event) {
+            detailsName.textContent = event.name || '無標題';
+            detailsDate.textContent = event.date || '未指定';
+            detailsTime.textContent = event.time || '未指定';
+            detailsLocation.textContent = event.location || '未指定';
+            detailsDescription.textContent = event.description || '沒有提供詳細描述。';
+            if(event.url && event.url.startsWith('https')) {
+                detailsUrlBtn.href = event.url;
+                detailsUrlBtn.classList.remove('hidden');
+            } else {
+                detailsUrlBtn.classList.add('hidden');
+            }
+            eventDetailsModal.classList.remove('hidden');
+            setTimeout(() => { eventDetailsModalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
+        }
+
         function renderTagCheckboxesForModal(selectedTags = {}) {
             eventTagsContainer.innerHTML = '';
-            const categories = { activity: '活動類型', venue: '場地' };
-
-            for (const category in categories) {
-                if (filterTags[category] && filterTags[category].length > 0) {
+            filterCategories.forEach(category => {
+                 if (filterTags[category.id] && filterTags[category.id].length > 0) {
                     const fieldset = document.createElement('fieldset');
-                    fieldset.innerHTML = `<legend class="text-sm font-medium text-gray-900 mb-2">${categories[category]}</legend>`;
+                    fieldset.innerHTML = `<legend class="text-sm font-medium text-gray-900 mb-2">${category.name}</legend>`;
                     
                     const tagsWrapper = document.createElement('div');
                     tagsWrapper.className = 'grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2';
 
-                    filterTags[category].forEach(tag => {
-                        const isChecked = selectedTags[category] && selectedTags[category].includes(tag);
+                    filterTags[category.id].forEach(tag => {
+                        const isChecked = selectedTags[category.id] && selectedTags[category.id].includes(tag);
                         const div = document.createElement('div');
                         div.className = 'flex items-center';
                         div.innerHTML = `
-                            <input id="tag-${category}-${tag}" data-category="${category}" name="tags" type="checkbox" value="${tag}" ${isChecked ? 'checked' : ''} class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                            <label for="tag-${category}-${tag}" class="ml-2 block text-sm text-gray-700">${tag}</label>
+                            <input id="tag-${category.id}-${tag.replace(/\s+/g, '-')}" data-category="${category.id}" name="tags" type="checkbox" value="${tag}" ${isChecked ? 'checked' : ''} class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <label for="tag-${category.id}-${tag.replace(/\s+/g, '-')}" class="ml-2 block text-sm text-gray-700">${tag}</label>
                         `;
                         tagsWrapper.appendChild(div);
                     });
@@ -516,14 +607,17 @@
                     fieldset.appendChild(tagsWrapper);
                     eventTagsContainer.appendChild(fieldset);
                 }
-            }
+            });
         }
 
         async function handleFormSubmit(e) {
             e.preventDefault();
             const eventId = eventIdInput.value;
             
-            const selectedTags = { activity: [], venue: [] };
+            const selectedTags = {};
+            filterCategories.forEach(cat => {
+                selectedTags[cat.id] = [];
+            });
             const checkedBoxes = eventTagsContainer.querySelectorAll('input[type="checkbox"]:checked');
             checkedBoxes.forEach(box => {
                 const category = box.dataset.category;
@@ -535,6 +629,9 @@
             const eventData = {
                 date: eventDateInput.value, 
                 name: eventNameInput.value, 
+                time: eventTimeInput.value,
+                location: eventLocationInput.value,
+                description: eventDescriptionInput.value,
                 spots: parseInt(eventSpotsInput.value) || 0,
                 url: eventUrlInput.value, 
                 color: eventColorInput.value, 
@@ -547,8 +644,8 @@
             } catch (error) { console.error("儲存活動失敗: ", error); }
         }
 
-        function openDeleteModal(type, id, category = null) {
-            itemToDelete = { type, id, category };
+        function openDeleteModal(type, id, context = null) {
+            itemToDelete = { type, id, context };
             deleteConfirmModal.classList.remove('hidden');
             setTimeout(() => deleteConfirmModalContent.classList.remove('scale-95', 'opacity-0'), 10);
         }
@@ -559,39 +656,100 @@
                 if (itemToDelete.type === 'event') {
                     await deleteDoc(doc(db, eventsCollectionRef.path, itemToDelete.id));
                 } else if (itemToDelete.type === 'tag') {
-                    const tagDocRef = doc(db, filterTagsCollectionRef.path, itemToDelete.category);
-                    await setDoc(tagDocRef, { tags: arrayRemove(itemToDelete.id) }, { merge: true });
+                    const { categoryId, tagName } = itemToDelete.context;
+                    const tagDocRef = doc(db, `/calendars/${calendarId}/filterTags/${categoryId}`);
+                    await setDoc(tagDocRef, { tags: arrayRemove(tagName) }, { merge: true });
+                } else if (itemToDelete.type === 'category') {
+                    const updatedCategories = filterCategories.filter(c => c.id !== itemToDelete.id);
+                    const batch = writeBatch(db);
+                    batch.set(categoriesDocRef, { list: updatedCategories });
+                    const tagsDocToDeleteRef = doc(db, `/calendars/${calendarId}/filterTags/${itemToDelete.id}`);
+                    batch.delete(tagsDocToDeleteRef);
+                    await batch.commit();
                 }
             } catch (error) { console.error("刪除失敗:", error); }
             finally { closeModal(deleteConfirmModal, deleteConfirmModalContent); itemToDelete = null; }
         }
         
         function renderTagManager() {
-            const createTagList = (container, category) => {
-                container.innerHTML = '';
-                if (!filterTags[category] || filterTags[category].length === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-500">尚無標籤</p>'; return;
+            // Render Categories
+            categoryManagerList.innerHTML = '';
+            filterCategories.forEach(cat => {
+                const catEl = document.createElement('div');
+                catEl.className = 'flex items-center justify-between bg-gray-100 p-2 rounded';
+                catEl.innerHTML = `
+                    <input type="text" value="${cat.name}" class="text-sm bg-transparent flex-grow p-1 rounded border border-transparent focus:border-gray-300 focus:bg-white" data-id="${cat.id}">
+                    <div class="flex items-center space-x-2">
+                        <button class="text-xs text-blue-600 hover:underline" data-action="save" data-id="${cat.id}">儲存</button>
+                        <button class="text-red-500 hover:text-red-700 font-bold" data-action="delete" data-id="${cat.id}">&times;</button>
+                    </div>`;
+                categoryManagerList.appendChild(catEl);
+            });
+             categoryManagerList.querySelectorAll('button[data-action="save"]').forEach(btn => btn.onclick = handleUpdateCategory);
+             categoryManagerList.querySelectorAll('button[data-action="delete"]').forEach(btn => btn.onclick = (e) => openDeleteModal('category', e.target.dataset.id));
+
+            // Render Tags for each category
+            tagManagerContainer.innerHTML = '';
+            filterCategories.forEach(cat => {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = `
+                    <h4 class="font-semibold mb-2 text-gray-800">${cat.name}</h4>
+                    <div class="tag-list space-y-2 mb-2"></div>
+                    <form class="flex space-x-2" data-category-id="${cat.id}">
+                        <input type="text" placeholder="新增標籤" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
+                        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">新增</button>
+                    </form>
+                `;
+                const tagListEl = wrapper.querySelector('.tag-list');
+                const tagForm = wrapper.querySelector('form');
+
+                if (filterTags[cat.id] && filterTags[cat.id].length > 0) {
+                     filterTags[cat.id].forEach(tag => {
+                        const tagEl = document.createElement('div');
+                        tagEl.className = 'flex items-center justify-between bg-gray-100 p-1.5 rounded text-sm';
+                        tagEl.innerHTML = `<span>${tag}</span><button class="text-red-500 hover:text-red-700">&times;</button>`;
+                        tagEl.querySelector('button').onclick = () => openDeleteModal('tag', null, { categoryId: cat.id, tagName: tag });
+                        tagListEl.appendChild(tagEl);
+                    });
+                } else {
+                     tagListEl.innerHTML = '<p class="text-xs text-gray-500">尚無標籤</p>';
                 }
-                filterTags[category].forEach(tag => {
-                    const tagEl = document.createElement('div');
-                    tagEl.className = 'flex items-center justify-between bg-gray-100 p-1.5 rounded text-sm';
-                    tagEl.innerHTML = `<span>${tag}</span><button class="text-red-500 hover:text-red-700">&times;</button>`;
-                    tagEl.querySelector('button').onclick = () => openDeleteModal('tag', tag, category);
-                    container.appendChild(tagEl);
-                });
-            };
-            createTagList(activityTagsList, 'activity');
-            createTagList(venueTagsList, 'venue');
+               
+                tagForm.onsubmit = handleAddTag;
+                tagManagerContainer.appendChild(wrapper);
+            });
+        }
+        
+        async function handleAddCategory(e) {
+            e.preventDefault();
+            const input = document.getElementById('new-category-name');
+            const newName = input.value.trim();
+            if (newName) {
+                const newId = newName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
+                const newCategory = { id: newId, name: newName };
+                await setDoc(categoriesDocRef, { list: arrayUnion(newCategory) }, { merge: true });
+                input.value = '';
+            }
+        }
+        
+        async function handleUpdateCategory(e) {
+            const categoryId = e.target.dataset.id;
+            const input = categoryManagerList.querySelector(`input[data-id="${categoryId}"]`);
+            const newName = input.value.trim();
+            if (newName) {
+                const updatedCategories = filterCategories.map(c => c.id === categoryId ? { ...c, name: newName } : c);
+                await setDoc(categoriesDocRef, { list: updatedCategories });
+            }
         }
 
         async function handleAddTag(e) {
             e.preventDefault();
             const form = e.target;
-            const category = form.dataset.category;
+            const categoryId = form.dataset.categoryId;
             const input = form.querySelector('input');
             const newTag = input.value.trim();
-            if (newTag && !filterTags[category].includes(newTag)) {
-                const tagDocRef = doc(db, filterTagsCollectionRef.path, category);
+            if (newTag) {
+                const tagDocRef = doc(db, `/calendars/${calendarId}/filterTags/${categoryId}`);
                 await setDoc(tagDocRef, { tags: arrayUnion(newTag) }, { merge: true });
                 input.value = '';
             }
@@ -605,15 +763,16 @@
         deleteEventBtn.onclick = () => openDeleteModal('event', eventIdInput.value);
         confirmDeleteBtn.onclick = handleConfirmDelete;
         cancelDeleteBtn.onclick = () => closeModal(deleteConfirmModal, deleteConfirmModalContent);
+        closeDetailsBtn.onclick = () => closeModal(eventDetailsModal, eventDetailsModalContent);
 
         manageFiltersBtn.onclick = () => {
             filterManagerModal.classList.remove('hidden');
             setTimeout(() => filterManagerModalContent.classList.remove('scale-95', 'opacity-0'), 10);
         };
         closeFilterManagerBtn.onclick = () => closeModal(filterManagerModal, filterManagerModalContent);
-        document.querySelectorAll('#filter-manager-modal form').forEach(form => form.onsubmit = handleAddTag);
+        addCategoryForm.onsubmit = handleAddCategory;
         
-        [eventModal, deleteConfirmModal, filterManagerModal].forEach(modal => {
+        [eventModal, deleteConfirmModal, filterManagerModal, eventDetailsModal].forEach(modal => {
             modal.onclick = (e) => { if (e.target === modal) closeModal(modal, modal.querySelector('.modal-content')); };
         });
 
@@ -622,7 +781,4 @@
 </script>
 </body>
 </html>
-
-
-
 
