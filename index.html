@@ -62,7 +62,10 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                 </button>
             </div>
-            <button id="manage-filters-btn" class="hidden px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">管理篩選</button>
+            <div class="flex flex-col items-end space-y-2">
+                <button id="manage-filters-btn" class="hidden px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">管理篩選</button>
+                <div id="last-updated" class="text-xs text-gray-500"></div>
+            </div>
         </div>
 
         <!-- 篩選選單 -->
@@ -105,7 +108,7 @@
                 </div>
 
                 <div class="mt-4">
-                    <label for="event-spots" class="block text-sm font-medium text-gray-700">報名剩餘名額</label>
+                    <label for="event-spots" class="block text-sm font-medium text-gray-700">目前參與人數</label>
                     <input type="number" id="event-spots" min="0" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
                 <div class="mt-4">
@@ -199,6 +202,7 @@
         const loadingOverlay = document.getElementById('loading-overlay');
         const mainContainer = document.getElementById('main-container');
         const userIdDisplay = document.getElementById('user-id-display');
+        const lastUpdatedEl = document.getElementById('last-updated');
         const mobileEventView = document.getElementById('mobile-event-view');
         const mobileEventList = document.getElementById('mobile-event-list');
         const mobileEventDate = document.getElementById('mobile-event-date');
@@ -271,6 +275,10 @@
         function listenForData() {
             onSnapshot(eventsCollectionRef, (snapshot) => {
                 allEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const now = new Date();
+                if (lastUpdatedEl) {
+                    lastUpdatedEl.textContent = `最近更新: ${now.toLocaleString('zh-TW', { hour12: false })}`;
+                }
                 renderCalendar();
                 renderMobileEvents(selectedDateStr);
             });
@@ -396,16 +404,33 @@
             return cell;
         }
         
+        function getStatusIndicatorHTML(spots) {
+            let text = '';
+            let className = '';
+            if (spots <= 3) {
+                text = '即將成團';
+                className = 'border-blue-500 text-blue-500';
+            } else if (spots >= 4 && spots <= 9) {
+                text = '確定成團';
+                className = 'border-red-500 text-red-500';
+            } else { // 10 or more
+                text = '已經滿團';
+                className = 'border-gray-500 text-gray-500';
+            }
+            return `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded border-2 ${className}">${text}</span>`;
+        }
+
         const getTextColorForBackground = (hex) => (parseInt(hex.slice(1), 16) > 0xffffff / 2) ? '#000000' : '#FFFFFF';
 
         function createEventBubble(event) {
             const bubble = document.createElement('div');
             const urlIsValid = event.url && event.url.startsWith('https');
-            bubble.className = `event-bubble text-xs p-1.5 rounded-lg flex items-center justify-between space-x-2 ${isAdmin || !urlIsValid ? 'cursor-pointer' : ''}`;
-            bubble.title = `${event.name}\n名額: ${event.spots}\n${isAdmin ? '點擊編輯' : '點擊前往報名'}`;
+            bubble.className = `event-bubble text-xs p-1.5 rounded-lg flex flex-col items-start justify-start space-y-1 ${isAdmin || !urlIsValid ? 'cursor-pointer' : ''}`;
+            bubble.title = `${event.name}\n${isAdmin ? '點擊編輯' : '點擊前往報名'}`;
             const bgColor = event.color || '#bee3f8', textColor = getTextColorForBackground(bgColor);
             bubble.style.cssText = `background-color:${bgColor}; color:${textColor};`;
-            bubble.innerHTML = `<span class="font-semibold truncate">${event.name}</span><span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style="background-color:${textColor};color:${bgColor};">${event.spots}</span>`;
+            const statusIndicatorHTML = getStatusIndicatorHTML(event.spots);
+            bubble.innerHTML = `<span class="font-semibold">${event.name}</span>${statusIndicatorHTML}`;
             bubble.onclick = (e) => { e.stopPropagation(); if (isAdmin) openModal(event.date, event.id); else if (urlIsValid) window.open(event.url, '_blank'); };
             return bubble;
         }
@@ -597,4 +622,7 @@
 </script>
 </body>
 </html>
+
+
+
 
