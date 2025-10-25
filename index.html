@@ -49,6 +49,8 @@
             color: white;
             font-weight: bold;
         }
+        /* 批次新增日期選取樣式 */
+        .batch-date-cell.selected { background-color: #bfdbfe; border-color: #93c5fd; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -65,9 +67,13 @@
                 <button id="next-month" class="p-2 rounded-full hover:bg-gray-200 transition-colors duration-200">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                 </button>
+                 <button id="batch-add-btn" class="hidden ml-4 px-3 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700">批次新增活動</button>
             </div>
             <div class="flex flex-col items-end space-y-2">
-                <button id="manage-filters-btn" class="hidden px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">管理篩選</button>
+                <div class="flex space-x-2">
+                    <button id="manage-templates-btn" class="hidden px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-md hover:bg-purple-700">管理活動模板</button>
+                    <button id="manage-filters-btn" class="hidden px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">管理篩選</button>
+                </div>
                 <div id="last-updated" class="text-xs text-gray-500"></div>
             </div>
         </div>
@@ -101,6 +107,7 @@
             <h3 class="text-lg font-bold mb-4" id="modal-title">新增活動</h3>
             <form id="event-form" class="max-h-[80vh] overflow-y-auto pr-2">
                 <input type="hidden" id="event-id"><input type="hidden" id="event-date">
+                <input type="hidden" id="event-template-id"> <!-- 用於標識是否從模板載入 -->
                 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -130,7 +137,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <div>
                         <label for="event-spots" class="block text-sm font-medium text-gray-700">目前參與人數</label>
-                        <input type="number" id="event-spots" min="0" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <input type="number" id="event-spots" min="0" required value="0" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     </div>
                     <div>
                         <label for="event-capacity" class="block text-sm font-medium text-gray-700">活動總名額</label>
@@ -198,6 +205,73 @@
             </div>
         </div>
     </div>
+    
+    <!-- 管理活動模板 Modal -->
+    <div id="template-manager-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl transform scale-95 opacity-0 modal-content" id="template-manager-modal-content">
+             <div class="max-h-[80vh] overflow-y-auto pr-4">
+                <h3 class="text-lg font-bold mb-4">管理活動模板</h3>
+                <div class="mb-4">
+                     <button id="add-new-template-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">＋ 新增模板</button>
+                </div>
+                <div id="template-list" class="space-y-3">
+                    <!-- 模板列表動態生成 -->
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end pt-4 border-t">
+                <button type="button" id="close-template-manager-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">關閉</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 批次新增 Modal -->
+    <div id="batch-add-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl transform scale-95 opacity-0 modal-content" id="batch-add-modal-content">
+            <h3 class="text-lg font-bold mb-4">批次新增活動</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto pr-2">
+                <div>
+                    <label for="batch-template-select" class="block text-sm font-medium text-gray-700 mb-1">選擇活動模板</label>
+                    <select id="batch-template-select" class="block w-full border-gray-300 rounded-md shadow-sm sm:text-sm">
+                        <option value="">請選擇一個模板...</option>
+                        <!-- 動態填充模板選項 -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">選擇日期 (可複選)</label>
+                    <div id="batch-calendar-container" class="border rounded-md p-2 bg-gray-50">
+                        <!-- 迷你日曆 -->
+                        <div class="flex items-center justify-between mb-2 noselect">
+                            <button id="batch-prev-month" type="button" class="p-1 rounded-full hover:bg-gray-200">&lt;</button>
+                            <h4 id="batch-month-year" class="text-sm font-semibold"></h4>
+                            <button id="batch-next-month" type="button" class="p-1 rounded-full hover:bg-gray-200">&gt;</button>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-1">
+                            <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                        </div>
+                        <div id="batch-calendar-grid" class="grid grid-cols-7 gap-1"></div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">已選擇 <span id="batch-selected-count">0</span> 天</p>
+                </div>
+            </div>
+             <div class="mt-6 flex justify-end space-x-3 pt-4 border-t">
+                 <button type="button" id="cancel-batch-add-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
+                 <button type="button" id="confirm-batch-add-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" disabled>新增至選定日期</button>
+            </div>
+        </div>
+    </div>
+    
+     <!-- 單日新增選項 Modal -->
+    <div id="add-options-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-xs transform scale-95 opacity-0 modal-content" id="add-options-modal-content">
+            <h3 class="text-lg font-bold mb-4">新增方式</h3>
+            <div class="space-y-3">
+                 <button id="add-single-event-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">新增單次活動</button>
+                 <button id="add-from-template-btn" class="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">從模板快速新增</button>
+                 <button id="cancel-add-options-btn" class="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
+            </div>
+        </div>
+    </div>
+
 
     <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm transform scale-95 opacity-0 modal-content" id="delete-confirm-modal-content">
@@ -221,7 +295,7 @@
     // --- 引入 Firebase SDK ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, arrayUnion, arrayRemove, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, arrayUnion, arrayRemove, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     document.addEventListener('DOMContentLoaded', () => {
         
@@ -255,6 +329,7 @@
         const eventForm = document.getElementById('event-form');
         const eventIdInput = document.getElementById('event-id');
         const eventDateInput = document.getElementById('event-date');
+        const eventTemplateIdInput = document.getElementById('event-template-id');
         const eventNameInput = document.getElementById('event-name');
         const eventTimeInput = document.getElementById('event-time');
         const eventLocationInput = document.getElementById('event-location');
@@ -288,17 +363,47 @@
         const categoryManagerList = document.getElementById('category-manager-list');
         const addCategoryForm = document.getElementById('add-category-form');
         const tagManagerContainer = document.getElementById('tag-manager-container');
+        
+        const manageTemplatesBtn = document.getElementById('manage-templates-btn');
+        const templateManagerModal = document.getElementById('template-manager-modal');
+        const templateManagerModalContent = document.getElementById('template-manager-modal-content');
+        const closeTemplateManagerBtn = document.getElementById('close-template-manager-btn');
+        const addNewTemplateBtn = document.getElementById('add-new-template-btn');
+        const templateList = document.getElementById('template-list');
+
+        const batchAddBtn = document.getElementById('batch-add-btn');
+        const batchAddModal = document.getElementById('batch-add-modal');
+        const batchAddModalContent = document.getElementById('batch-add-modal-content');
+        const batchTemplateSelect = document.getElementById('batch-template-select');
+        const batchCalendarContainer = document.getElementById('batch-calendar-container');
+        const batchCalendarGrid = document.getElementById('batch-calendar-grid');
+        const batchMonthYear = document.getElementById('batch-month-year');
+        const batchPrevMonthBtn = document.getElementById('batch-prev-month');
+        const batchNextMonthBtn = document.getElementById('batch-next-month');
+        const batchSelectedCount = document.getElementById('batch-selected-count');
+        const cancelBatchAddBtn = document.getElementById('cancel-batch-add-btn');
+        const confirmBatchAddBtn = document.getElementById('confirm-batch-add-btn');
+
+        const addOptionsModal = document.getElementById('add-options-modal');
+        const addOptionsModalContent = document.getElementById('add-options-modal-content');
+        const addSingleEventBtn = document.getElementById('add-single-event-btn');
+        const addFromTemplateBtn = document.getElementById('add-from-template-btn');
+        const cancelAddOptionsBtn = document.getElementById('cancel-add-options-btn');
 
         const formatDate = (date) => `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 
         let currentDate = new Date();
+        let batchCurrentDate = new Date(); // For batch calendar
         let allEvents = [];
         let filterCategories = [];
         let filterTags = {};
+        let eventTemplates = [];
         let activeFilters = {};
-        let db, auth, eventsCollectionRef, categoriesDocRef;
+        let batchSelectedDates = new Set();
+        let db, auth, eventsCollectionRef, categoriesDocRef, templatesCollectionRef;
         let itemToDelete = null; 
         let selectedDateStr = formatDate(new Date());
+        let clickedDateForAdd = null; // Store date clicked for add options
         let isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
 
         async function initializeFirebase() {
@@ -314,9 +419,12 @@
                         if (isAdmin) {
                              mainContainer.insertAdjacentHTML('beforeend', '<div class="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded shadow-md">管理員模式</div>');
                              manageFiltersBtn.classList.remove('hidden');
+                             manageTemplatesBtn.classList.remove('hidden');
+                             batchAddBtn.classList.remove('hidden');
                         }
                         eventsCollectionRef = collection(db, `/calendars/${calendarId}/events`);
                         categoriesDocRef = doc(db, `/calendars/${calendarId}/config/categories`);
+                        templatesCollectionRef = collection(db, `/calendars/${calendarId}/templates`);
                         listenForData();
                         loadingOverlay.classList.add('hidden');
                         mainContainer.classList.remove('hidden');
@@ -349,6 +457,11 @@
                     listenForTags(cat.id);
                 });
             });
+             onSnapshot(templatesCollectionRef, (snapshot) => {
+                eventTemplates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTemplateManager();
+                populateTemplateSelects();
+            });
         }
         
         function listenForTags(categoryId) {
@@ -357,6 +470,7 @@
                 filterTags[categoryId] = snapshot.exists() ? snapshot.data().tags || [] : [];
                 renderFilterControls(); // Re-render controls when tags change
                 renderTagManager(); // Re-render manager UI
+                renderTagCheckboxesForModal(); // Update checkboxes in open modal if needed
             });
         }
         
@@ -474,7 +588,11 @@
                         document.querySelectorAll('.mobile-selected').forEach(c => c.classList.remove('mobile-selected'));
                         cell.classList.add('mobile-selected');
                         renderMobileEvents(dateString);
-                        if (isAdmin && window.innerWidth >= 640) openModal(dateString);
+                        // Show options modal only in admin mode
+                        if (isAdmin) {
+                            clickedDateForAdd = dateString;
+                            openAddOptionsModal();
+                        }
                     }
                 });
             }
@@ -557,37 +675,60 @@
             }
             if (isAdmin) {
                 mobileEventList.insertAdjacentHTML('beforeend', '<button id="mobile-add-event" class="w-full mt-2 px-4 py-2 bg-green-500 text-white rounded-md text-sm font-semibold">＋ 新增活動</button>');
-                document.getElementById('mobile-add-event').onclick = () => openModal(dateString);
+                document.getElementById('mobile-add-event').onclick = openAddOptionsModal;
             }
         }
         
-        function openModal(dateString, eventId = null) {
+        function openModal(dateString, eventId = null, templateId = null) {
             eventForm.reset();
             eventDateInput.value = dateString;
-            if (!eventId) {
+            eventTemplateIdInput.value = templateId || ''; // Store template ID if applicable
+
+            if (!eventId && !templateId) { // Brand new event
                 modalTitle.textContent = `在 ${dateString} 新增活動`;
                 eventIdInput.value = ''; 
                 eventColorInput.value = '#bee3f8'; 
+                eventSpotsInput.value = '0'; // Default spots
                 deleteEventBtn.classList.add('hidden');
                 renderTagCheckboxesForModal({});
-            } else {
+            } else if (templateId) { // Loading from template
+                 const template = eventTemplates.find(t => t.id === templateId);
+                 if (!template) return;
+                 modalTitle.textContent = `從模板新增活動於 ${dateString}`;
+                 eventIdInput.value = ''; // It's a new event, not editing an existing one
+                 fillFormFromTemplate(template);
+                 deleteEventBtn.classList.add('hidden');
+            } else { // Editing existing event
                 const event = allEvents.find(e => e.id === eventId); if (!event) return;
                 modalTitle.textContent = `編輯 ${dateString} 的活動`;
                 eventIdInput.value = event.id; 
-                eventNameInput.value = event.name;
-                eventTimeInput.value = event.time || '';
-                eventLocationInput.value = event.location || '';
-                eventDescriptionInput.value = event.description || '';
-                eventSpotsInput.value = event.spots;
-                eventCapacityInput.value = event.capacity || '';
-                eventUrlInput.value = event.url; 
-                eventColorInput.value = event.color || '#bee3f8';
-                renderTagCheckboxesForModal(event.tags || {});
+                fillFormFromData(event); // Use helper to fill form
                 deleteEventBtn.classList.remove('hidden');
             }
             eventModal.classList.remove('hidden');
             setTimeout(() => { eventModalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
         }
+
+        // Helper to fill form from event or template data
+        function fillFormFromData(data) {
+             eventNameInput.value = data.name || '';
+             eventTimeInput.value = data.time || '';
+             eventLocationInput.value = data.location || '';
+             eventDescriptionInput.value = data.description || '';
+             eventSpotsInput.value = data.spots ?? '0'; // Default to 0 if undefined
+             eventCapacityInput.value = data.capacity || '';
+             eventUrlInput.value = data.url || ''; 
+             eventColorInput.value = data.color || '#bee3f8';
+             renderTagCheckboxesForModal(data.tags || {});
+        }
+        // Specific helper for template
+         function fillFormFromTemplate(template) {
+             fillFormFromData(template); // Use common helper
+             // Templates might not have spots, default to 0 for new event
+             eventSpotsInput.value = '0';
+        }
+
+
         const closeModal = (modal, content) => { content.classList.add('scale-95', 'opacity-0'); setTimeout(() => modal.classList.add('hidden'), 200); };
         
         function openDetailsModal(event) {
@@ -631,6 +772,9 @@
                     eventTagsContainer.appendChild(fieldset);
                 }
             });
+             if (eventTagsContainer.innerHTML === '') {
+                 eventTagsContainer.innerHTML = '<p class="text-xs text-gray-500 text-center">尚未建立任何篩選分類或標籤。請至「管理篩選」建立。</p>';
+            }
         }
 
 
@@ -662,10 +806,14 @@
                 url: eventUrlInput.value, 
                 color: eventColorInput.value, 
                 tags: selectedTags,
+                // templateId: eventTemplateIdInput.value || null, // Optional: store source template ID
             };
             try {
-                if (eventId) { await setDoc(doc(db, eventsCollectionRef.path, eventId), eventData); }
-                else { await addDoc(eventsCollectionRef, eventData); }
+                if (eventId) { // Editing existing event
+                    await setDoc(doc(db, eventsCollectionRef.path, eventId), eventData); 
+                 } else { // Adding new event (could be from template or scratch)
+                    await addDoc(eventsCollectionRef, eventData); 
+                 }
                 closeModal(eventModal, eventModalContent);
             } catch (error) { console.error("儲存活動失敗: ", error); }
         }
@@ -692,7 +840,9 @@
                     const tagsDocToDeleteRef = doc(db, `/calendars/${calendarId}/filterTags/${itemToDelete.id}`);
                     batch.delete(tagsDocToDeleteRef);
                     await batch.commit();
-                }
+                } else if (itemToDelete.type === 'template') {
+                    await deleteDoc(doc(db, templatesCollectionRef.path, itemToDelete.id));
+                 }
             } catch (error) { console.error("刪除失敗:", error); }
             finally { closeModal(deleteConfirmModal, deleteConfirmModalContent); itemToDelete = null; }
         }
@@ -781,11 +931,216 @@
             }
         }
         
+         // --- Template Management Functions ---
+         function renderTemplateManager() {
+             templateList.innerHTML = '';
+             if (eventTemplates.length === 0) {
+                templateList.innerHTML = '<p class="text-gray-500 text-center">尚無活動模板。</p>';
+                return;
+             }
+             eventTemplates.forEach(template => {
+                 const div = document.createElement('div');
+                 div.className = 'border rounded-md p-4 bg-gray-50 flex justify-between items-start';
+                 div.innerHTML = `
+                     <div>
+                         <h4 class="font-semibold text-gray-800">${template.name}</h4>
+                         <p class="text-sm text-gray-600 truncate max-w-md">${template.description || '無描述'}</p>
+                     </div>
+                     <div class="flex space-x-2 flex-shrink-0">
+                         <button data-id="${template.id}" class="edit-template-btn text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">編輯</button>
+                         <button data-id="${template.id}" class="delete-template-btn text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">刪除</button>
+                     </div>
+                 `;
+                 templateList.appendChild(div);
+             });
+
+             templateList.querySelectorAll('.edit-template-btn').forEach(btn => btn.onclick = () => openTemplateModal(btn.dataset.id));
+             templateList.querySelectorAll('.delete-template-btn').forEach(btn => btn.onclick = () => openDeleteModal('template', btn.dataset.id));
+         }
+
+        function openTemplateModal(templateId = null) {
+            // Reuse the event modal for template editing/creation
+            eventForm.reset();
+            eventDateInput.value = ''; // No date for templates
+            eventTemplateIdInput.value = templateId || ''; // Store template ID being edited
+
+            if (!templateId) { // Creating new template
+                modalTitle.textContent = '新增活動模板';
+                eventIdInput.value = ''; // Not an event ID
+                eventColorInput.value = '#e0e7ff'; // Different default color?
+                eventSpotsInput.value = '0'; // Default spots for template
+                deleteEventBtn.classList.add('hidden'); // Cannot delete from here
+                renderTagCheckboxesForModal({});
+            } else { // Editing existing template
+                const template = eventTemplates.find(t => t.id === templateId); if (!template) return;
+                modalTitle.textContent = `編輯活動模板: ${template.name}`;
+                eventIdInput.value = ''; // Still not an event ID
+                fillFormFromData(template); // Reuse form filling logic
+                deleteEventBtn.classList.add('hidden'); // Cannot delete from here
+            }
+            // Modify form submission to handle templates
+            eventForm.onsubmit = handleTemplateFormSubmit; 
+            // Show the modal
+            eventModal.classList.remove('hidden');
+            setTimeout(() => { eventModalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
+        }
+
+        async function handleTemplateFormSubmit(e) {
+            e.preventDefault();
+            const templateId = eventTemplateIdInput.value;
+            
+            const selectedTags = {};
+            filterCategories.forEach(cat => { selectedTags[cat.id] = []; });
+            eventTagsContainer.querySelectorAll('input[type="checkbox"]:checked').forEach(box => {
+                if (selectedTags[box.dataset.category]) { selectedTags[box.dataset.category].push(box.value); }
+            });
+
+            const templateData = {
+                // No date!
+                name: eventNameInput.value, 
+                time: eventTimeInput.value,
+                location: eventLocationInput.value,
+                description: eventDescriptionInput.value,
+                spots: parseInt(eventSpotsInput.value) || 0, // Store default spots? Or maybe remove? Let's keep it for now.
+                capacity: parseInt(eventCapacityInput.value) || 0,
+                url: eventUrlInput.value, 
+                color: eventColorInput.value, 
+                tags: selectedTags,
+            };
+            try {
+                if (templateId) { // Editing existing template
+                    await setDoc(doc(db, templatesCollectionRef.path, templateId), templateData); 
+                 } else { // Adding new template
+                    await addDoc(templatesCollectionRef, templateData); 
+                 }
+                closeModal(eventModal, eventModalContent);
+                eventForm.onsubmit = handleFormSubmit; // Restore original submit handler
+            } catch (error) { 
+                console.error("儲存模板失敗: ", error); 
+                eventForm.onsubmit = handleFormSubmit; // Restore original submit handler even on error
+            }
+        }
+        
+         function populateTemplateSelects() {
+             batchTemplateSelect.innerHTML = '<option value="">請選擇一個模板...</option>';
+             eventTemplates.forEach(t => {
+                const option = document.createElement('option');
+                option.value = t.id;
+                option.textContent = t.name;
+                batchTemplateSelect.appendChild(option);
+            });
+            // Also populate for quick add (if implementing later)
+         }
+
+
+         // --- Batch Add Functions ---
+         function openBatchAddModal() {
+             batchTemplateSelect.value = ''; // Reset selection
+             batchSelectedDates.clear(); // Clear selected dates
+             batchCurrentDate = new Date(); // Reset calendar view
+             renderBatchCalendar();
+             updateConfirmBatchAddButton();
+             batchAddModal.classList.remove('hidden');
+             setTimeout(() => { batchAddModalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
+         }
+
+        function renderBatchCalendar() {
+            batchCalendarGrid.innerHTML = '';
+            const year = batchCurrentDate.getFullYear(), month = batchCurrentDate.getMonth();
+            batchMonthYear.textContent = `${year}年 ${month + 1}月`;
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            for (let i = firstDayOfMonth; i > 0; i--) batchCalendarGrid.appendChild(createBatchDayCell(daysInPrevMonth - i + 1, true, null));
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateString = formatDate(new Date(year, month, i));
+                batchCalendarGrid.appendChild(createBatchDayCell(i, false, dateString));
+            }
+            const totalCells = batchCalendarGrid.children.length;
+            const remainingCells = (totalCells > 35 ? 42 : 35) - totalCells;
+            for (let i = 1; i <= remainingCells; i++) batchCalendarGrid.appendChild(createBatchDayCell(i, true, null));
+        }
+
+        function createBatchDayCell(day, isOtherMonth, dateString) {
+            const cell = document.createElement('div');
+            cell.className = 'batch-date-cell p-1 border rounded text-center cursor-pointer text-xs';
+            cell.textContent = day;
+            if (isOtherMonth) {
+                cell.classList.add('text-gray-400', 'bg-gray-50', 'cursor-not-allowed');
+            } else {
+                 if (batchSelectedDates.has(dateString)) {
+                    cell.classList.add('selected', 'font-bold');
+                 }
+                cell.onclick = () => toggleBatchDateSelection(dateString, cell);
+            }
+            return cell;
+        }
+
+        function toggleBatchDateSelection(dateString, cell) {
+            if (batchSelectedDates.has(dateString)) {
+                batchSelectedDates.delete(dateString);
+                cell.classList.remove('selected', 'font-bold');
+            } else {
+                batchSelectedDates.add(dateString);
+                cell.classList.add('selected', 'font-bold');
+            }
+            batchSelectedCount.textContent = batchSelectedDates.size;
+            updateConfirmBatchAddButton();
+        }
+        
+        function updateConfirmBatchAddButton() {
+             confirmBatchAddBtn.disabled = !(batchTemplateSelect.value && batchSelectedDates.size > 0);
+        }
+
+        async function handleBatchAddConfirm() {
+            const templateId = batchTemplateSelect.value;
+            const dates = Array.from(batchSelectedDates);
+            if (!templateId || dates.length === 0) return;
+
+            const template = eventTemplates.find(t => t.id === templateId);
+            if (!template) return;
+            
+            confirmBatchAddBtn.disabled = true; // Disable while processing
+             confirmBatchAddBtn.textContent = '新增中...';
+
+            try {
+                const batch = writeBatch(db);
+                dates.forEach(date => {
+                    const newEventRef = doc(collection(db, eventsCollectionRef.path)); // Generate new doc ref
+                    const eventData = {
+                         ...template, // Spread template data
+                         date: date, // Add the specific date
+                         spots: 0, // Default spots to 0 for batch added events
+                         id: undefined, // Remove template ID if it exists
+                         // templateId: templateId // Optional: link back to template
+                     };
+                    delete eventData.id; // Ensure template ID isn't copied as event ID
+                    batch.set(newEventRef, eventData);
+                });
+                await batch.commit();
+                closeModal(batchAddModal, batchAddModalContent);
+            } catch (error) {
+                console.error("批次新增失敗:", error);
+                // Maybe show an error message to the user
+            } finally {
+                confirmBatchAddBtn.disabled = false;
+                 confirmBatchAddBtn.textContent = '新增至選定日期';
+            }
+        }
+        
+        // --- Add Options Modal ---
+        function openAddOptionsModal() {
+            addOptionsModal.classList.remove('hidden');
+            setTimeout(() => addOptionsModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+
         // --- Event Listeners ---
         prevMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
         nextMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
-        eventForm.onsubmit = handleFormSubmit;
-        cancelEventBtn.onclick = () => closeModal(eventModal, eventModalContent);
+        eventForm.onsubmit = handleFormSubmit; // Default submit handler
+        cancelEventBtn.onclick = () => { closeModal(eventModal, eventModalContent); eventForm.onsubmit = handleFormSubmit; /* Restore */ };
         deleteEventBtn.onclick = () => openDeleteModal('event', eventIdInput.value);
         confirmDeleteBtn.onclick = handleConfirmDelete;
         cancelDeleteBtn.onclick = () => closeModal(deleteConfirmModal, deleteConfirmModalContent);
@@ -798,8 +1153,73 @@
         closeFilterManagerBtn.onclick = () => closeModal(filterManagerModal, filterManagerModalContent);
         addCategoryForm.onsubmit = handleAddCategory;
         
-        [eventModal, deleteConfirmModal, filterManagerModal, eventDetailsModal].forEach(modal => {
-            modal.onclick = (e) => { if (e.target === modal) closeModal(modal, modal.querySelector('.modal-content')); };
+        manageTemplatesBtn.onclick = () => {
+             templateManagerModal.classList.remove('hidden');
+             setTimeout(() => templateManagerModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        };
+        closeTemplateManagerBtn.onclick = () => closeModal(templateManagerModal, templateManagerModalContent);
+        addNewTemplateBtn.onclick = () => openTemplateModal(); // Open modal for new template
+        
+        batchAddBtn.onclick = openBatchAddModal;
+        batchPrevMonthBtn.onclick = () => { batchCurrentDate.setMonth(batchCurrentDate.getMonth() - 1); renderBatchCalendar(); };
+        batchNextMonthBtn.onclick = () => { batchCurrentDate.setMonth(batchCurrentDate.getMonth() + 1); renderBatchCalendar(); };
+        batchTemplateSelect.onchange = updateConfirmBatchAddButton;
+        confirmBatchAddBtn.onclick = handleBatchAddConfirm;
+        cancelBatchAddBtn.onclick = () => closeModal(batchAddModal, batchAddModalContent);
+
+        addSingleEventBtn.onclick = () => {
+             closeModal(addOptionsModal, addOptionsModalContent);
+             openModal(clickedDateForAdd); // Open standard event modal
+        };
+        addFromTemplateBtn.onclick = () => {
+             closeModal(addOptionsModal, addOptionsModalContent);
+             // Need a way to select template first, then open event modal filled with template data.
+             // For simplicity now, let's reuse batch select but only allow one date.
+             // Better: show another small modal/select to pick template.
+              // Let's create a temporary select dropdown here.
+             const templateSelectModal = document.createElement('div');
+             templateSelectModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4';
+             const templateSelectContent = document.createElement('div');
+             templateSelectContent.className = 'bg-white rounded-lg p-4 w-full max-w-sm';
+             templateSelectContent.innerHTML = `
+                <h4 class="font-semibold mb-2">選擇模板</h4>
+                <select id="quick-add-template-select" class="block w-full border-gray-300 rounded-md mb-4">
+                    <option value="">請選擇...</option>
+                </select>
+                <div class="flex justify-end space-x-2">
+                    <button id="cancel-quick-add" class="px-3 py-1 bg-gray-200 rounded">取消</button>
+                    <button id="confirm-quick-add" class="px-3 py-1 bg-blue-600 text-white rounded" disabled>確定</button>
+                </div>
+             `;
+             templateSelectModal.appendChild(templateSelectContent);
+             document.body.appendChild(templateSelectModal);
+
+             const quickSelect = templateSelectContent.querySelector('#quick-add-template-select');
+             const confirmBtn = templateSelectContent.querySelector('#confirm-quick-add');
+             const cancelBtn = templateSelectContent.querySelector('#cancel-quick-add');
+             
+             eventTemplates.forEach(t => {
+                const option = document.createElement('option');
+                option.value = t.id; option.textContent = t.name;
+                quickSelect.appendChild(option);
+            });
+             
+             quickSelect.onchange = () => { confirmBtn.disabled = !quickSelect.value; };
+             cancelBtn.onclick = () => { document.body.removeChild(templateSelectModal); };
+             confirmBtn.onclick = () => {
+                 const selectedTemplateId = quickSelect.value;
+                 if (selectedTemplateId) {
+                    openModal(clickedDateForAdd, null, selectedTemplateId); // Pass templateId
+                 }
+                 document.body.removeChild(templateSelectModal);
+             };
+             templateSelectModal.onclick = (e) => { if (e.target === templateSelectModal) document.body.removeChild(templateSelectModal); };
+
+        };
+        cancelAddOptionsBtn.onclick = () => closeModal(addOptionsModal, addOptionsModalContent);
+
+        [eventModal, deleteConfirmModal, filterManagerModal, eventDetailsModal, templateManagerModal, batchAddModal, addOptionsModal].forEach(modal => {
+            if(modal) modal.onclick = (e) => { if (e.target === modal) closeModal(modal, modal.querySelector('.modal-content')); };
         });
 
         initializeFirebase();
