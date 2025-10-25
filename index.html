@@ -127,10 +127,17 @@
                     <!-- Dynamic tag checkboxes will be inserted here -->
                 </div>
 
-                <div class="mt-4">
-                    <label for="event-spots" class="block text-sm font-medium text-gray-700">目前參與人數</label>
-                    <input type="number" id="event-spots" min="0" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label for="event-spots" class="block text-sm font-medium text-gray-700">目前參與人數</label>
+                        <input type="number" id="event-spots" min="0" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="event-capacity" class="block text-sm font-medium text-gray-700">活動總名額</label>
+                        <input type="number" id="event-capacity" min="0" placeholder="0 (不限制)" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
                 </div>
+                
                 <div class="mt-4">
                     <label for="event-url" class="block text-sm font-medium text-gray-700">活動報名頁面 (URL)</label>
                     <input type="url" id="event-url" placeholder="https://..." required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -253,6 +260,7 @@
         const eventLocationInput = document.getElementById('event-location');
         const eventDescriptionInput = document.getElementById('event-description');
         const eventSpotsInput = document.getElementById('event-spots');
+        const eventCapacityInput = document.getElementById('event-capacity');
         const eventUrlInput = document.getElementById('event-url');
         const eventColorInput = document.getElementById('event-color');
         const eventTagsContainer = document.getElementById('event-tags-container');
@@ -502,8 +510,22 @@
             bubble.title = `${event.name}\n${isAdmin ? '點擊編輯' : '點擊查看詳情'}`;
             const bgColor = event.color || '#bee3f8', textColor = getTextColorForBackground(bgColor);
             bubble.style.cssText = `background-color:${bgColor}; color:${textColor};`;
+            
             const statusIndicatorHTML = getStatusIndicatorHTML(event.spots);
-            bubble.innerHTML = `<span class="font-semibold">${event.name}</span>${statusIndicatorHTML}`;
+            let remainingText = '';
+            const capacity = parseInt(event.capacity) || 0;
+            if (capacity > 0) {
+                const remaining = Math.max(0, capacity - (event.spots || 0));
+                remainingText = `<span class="text-[10px] font-medium" style="color:${textColor}; opacity: 0.8;">(剩 ${remaining} 位)</span>`;
+            }
+
+            bubble.innerHTML = `
+                <span class="font-semibold">${event.name}</span>
+                <div class="flex items-center space-x-1.5">
+                    ${statusIndicatorHTML}
+                    ${remainingText}
+                </div>
+            `;
             bubble.onclick = (e) => { e.stopPropagation(); if (isAdmin) openModal(event.date, event.id); else openDetailsModal(event); };
             return bubble;
         }
@@ -557,6 +579,7 @@
                 eventLocationInput.value = event.location || '';
                 eventDescriptionInput.value = event.description || '';
                 eventSpotsInput.value = event.spots;
+                eventCapacityInput.value = event.capacity || '';
                 eventUrlInput.value = event.url; 
                 eventColorInput.value = event.color || '#bee3f8';
                 renderTagCheckboxesForModal(event.tags || {});
@@ -610,6 +633,8 @@
             });
         }
 
+
+
         async function handleFormSubmit(e) {
             e.preventDefault();
             const eventId = eventIdInput.value;
@@ -633,6 +658,7 @@
                 location: eventLocationInput.value,
                 description: eventDescriptionInput.value,
                 spots: parseInt(eventSpotsInput.value) || 0,
+                capacity: parseInt(eventCapacityInput.value) || 0,
                 url: eventUrlInput.value, 
                 color: eventColorInput.value, 
                 tags: selectedTags,
