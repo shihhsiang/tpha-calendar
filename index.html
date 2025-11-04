@@ -53,10 +53,10 @@
         .batch-date-cell.selected { background-color: #bfdbfe; border-color: #93c5fd; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
     <!-- 主容器 -->
-    <div id="main-container" class="w-full bg-white p-4 sm:p-6 relative hidden min-h-screen">
+    <div id="main-container" class="w-full max-w-6xl bg-white rounded-xl shadow-lg p-4 sm:p-6 relative hidden">
         <!-- 月曆標頭 -->
         <div class="flex items-center justify-between mb-4 noselect">
             <div class="flex items-center space-x-2">
@@ -565,8 +565,8 @@
 
         function createDayCell(day, isOtherMonth, dateString, eventsByDate) {
             const cell = document.createElement('div');
-            // 將 sm:min-h-28 (最小高度) 改為 sm:h-36 (固定的 9rem 高度)，讓格子整齊
-            cell.className = `relative p-1 sm:p-2 border border-gray-200 bg-white rounded-md flex flex-col items-center justify-start sm:justify-start sm:items-stretch h-14 sm:h-36 transition-colors duration-200`;
+            // 將 sm:h-36 (固定的 9rem 高度) 改為 sm:h-48 (固定的 12rem 高度)
+            cell.className = `relative p-1 sm:p-2 border border-gray-200 bg-white rounded-md flex flex-col items-center justify-start sm:justify-start sm:items-stretch h-14 sm:h-48 transition-colors duration-200`;
             cell.innerHTML = `<div class="w-full flex justify-center sm:justify-end"><div class="day-number">${day}</div></div>`;
             
             if (isOtherMonth) {
@@ -579,8 +579,8 @@
                 if (eventsByDate[dateString]) {
                     cell.insertAdjacentHTML('beforeend', '<div class="sm:hidden absolute bottom-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full"></div>');
                     const desktopEventList = document.createElement('div');
-                    // 恢復 overflow-y-auto 並將 max-h-20 (5rem) 增加到 max-h-24 (6rem)
-                    desktopEventList.className = 'hidden sm:block mt-1 space-y-1 overflow-y-auto max-h-24 event-list';
+                    // 將 max-h-24 (6rem) 增加到 max-h-36 (9rem)
+                    desktopEventList.className = 'hidden sm:block mt-1 space-y-1 overflow-y-auto max-h-36 event-list';
                     eventsByDate[dateString].forEach(event => desktopEventList.appendChild(createEventBubble(event)));
                     cell.appendChild(desktopEventList);
                 }
@@ -1229,8 +1229,5 @@
 </script>
 </body>
 </html>
-
-
-
 
 
