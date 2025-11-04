@@ -28,9 +28,9 @@
         }
         .other-month { color: #9ca3af; }
         .noselect { -webkit-user-select: none; user-select: none; }
-        .event-list::-webkit-scrollbar { width: 4px; }
-        .event-list::-webkit-scrollbar-thumb { background-color: #a3a3a3; border-radius: 20px; }
-        .event-list::-webkit-scrollbar-track { background-color: #e5e5e5; }
+        .event-list::-webkit-scrollbar { width: 6px; } /* 滾動條加寬 */
+        .event-list::-webkit-scrollbar-thumb { background-color: #a3a3a3; border-radius: 3px; }
+        .event-list::-webkit-scrollbar-track { background-color: #e5e5e5; border-radius: 3px; }
         /* 轉場動畫 */
         .modal-content { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
         /* 活動懸停效果 */
@@ -53,10 +53,10 @@
         .batch-date-cell.selected { background-color: #bfdbfe; border-color: #93c5fd; }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gray-100 min-h-screen">
 
     <!-- 主容器 -->
-    <div id="main-container" class="w-full max-w-6xl bg-white rounded-xl shadow-lg p-4 sm:p-6 relative hidden">
+    <div id="main-container" class="w-full bg-white p-4 sm:p-6 relative hidden min-h-screen">
         <!-- 月曆標頭 -->
         <div class="flex items-center justify-between mb-4 noselect">
             <div class="flex items-center space-x-2">
@@ -147,7 +147,7 @@
                 
                 <div class="mt-4">
                     <label for="event-url" class="block text-sm font-medium text-gray-700">活動報名頁面 (URL)</label>
-                    <input type="url" id="event-url" placeholder="https://..." required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <input type="url" id="event-url" placeholder="https://..." class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
                 <div class="mt-4">
                     <label for="event-color" class="block text-sm font-medium text-gray-700">活動背景顏色</label>
@@ -565,7 +565,8 @@
 
         function createDayCell(day, isOtherMonth, dateString, eventsByDate) {
             const cell = document.createElement('div');
-            cell.className = `relative p-1 sm:p-2 border border-gray-200 bg-white rounded-md flex flex-col items-center justify-start sm:justify-start sm:items-stretch h-14 sm:h-28 transition-colors duration-200`;
+            // 將 sm:min-h-28 (最小高度) 改為 sm:h-36 (固定的 9rem 高度)，讓格子整齊
+            cell.className = `relative p-1 sm:p-2 border border-gray-200 bg-white rounded-md flex flex-col items-center justify-start sm:justify-start sm:items-stretch h-14 sm:h-36 transition-colors duration-200`;
             cell.innerHTML = `<div class="w-full flex justify-center sm:justify-end"><div class="day-number">${day}</div></div>`;
             
             if (isOtherMonth) {
@@ -578,7 +579,8 @@
                 if (eventsByDate[dateString]) {
                     cell.insertAdjacentHTML('beforeend', '<div class="sm:hidden absolute bottom-1.5 w-1.5 h-1.5 bg-blue-500 rounded-full"></div>');
                     const desktopEventList = document.createElement('div');
-                    desktopEventList.className = 'hidden sm:block mt-1 space-y-1 overflow-y-auto max-h-20 event-list pr-1';
+                    // 恢復 overflow-y-auto 並將 max-h-20 (5rem) 增加到 max-h-24 (6rem)
+                    desktopEventList.className = 'hidden sm:block mt-1 space-y-1 overflow-y-auto max-h-24 event-list';
                     eventsByDate[dateString].forEach(event => desktopEventList.appendChild(createEventBubble(event)));
                     cell.appendChild(desktopEventList);
                 }
@@ -1227,4 +1229,8 @@
 </script>
 </body>
 </html>
+
+
+
+
 
