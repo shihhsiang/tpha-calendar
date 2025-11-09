@@ -55,6 +55,10 @@
         .batch-date-cell.selected { background-color: #bfdbfe; border-color: #93c5fd; }
         
         /* 匯出圖片時的樣式 */
+        body.is-exporting {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
         body.is-exporting .event-list {
             max-height: none !important;
             overflow-y: visible !important;
@@ -66,30 +70,34 @@
         body.is-exporting #main-container {
             height: auto !important;
             box-shadow: none !important; /* No shadow on the image */
-        }
-        body.is-exporting .modal-content,
-        body.is-exporting [id*="-modal"],
-        body.is-exporting #loading-overlay,
-        body.is-exporting .sm\:hidden { /* Hide mobile-only elements */
-             display: none !important; /* Hide all modals and overlays */
+            max-width: none !important; /* 移除最大寬度 */
+            border-radius: 0 !important; /* 移除圓角 */
         }
         
-        /* 匯出處理中的提示 */
-        #export-spinner {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10000;
-            background: rgba(255,255,255,0.9);
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
+        /* 匯出時隱藏所有不需要的 UI 元素 */
+        body.is-exporting #prev-month,
+        body.is-exporting #next-month,
+        body.is-exporting #batch-add-btn,
+        body.is-exporting #export-calendar-btn,
+        body.is-exporting #manage-templates-btn,
+        body.is-exporting #manage-filters-btn,
+        body.is-exporting #filter-container,
+        body.is-exporting #last-updated,
+        body.is-exporting #user-id-display,
+        body.is-exporting .sm\:hidden, /* 隱藏手機版列表 */
+        body.is-exporting [id*="-modal"],
+        body.is-exporting #loading-overlay {
+             display: none !important; 
         }
+        /* 保持月份標題可見 */
+        body.is-exporting #current-month-year {
+            display: block !important;
+        }
+        /* 讓月份標題置中 */
+        body.is-exporting .flex.items-center.justify-between.mb-4 {
+            justify-content: center !important;
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -349,15 +357,6 @@
         <p class="mt-4 text-gray-600">正在連接雲端資料庫...</p>
     </div>
     
-    <!-- Export Spinner Overlay -->
-    <div id="export-spinner" class="hidden">
-        <svg class="animate-spin h-8 w-8 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p class="text-gray-700">正在產生圖片，請稍候...</p>
-    </div>
-
 <script type="module">
     // --- 引入 Firebase SDK ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -459,7 +458,7 @@
         const cancelAddOptionsBtn = document.getElementById('cancel-add-options-btn');
         
         const exportCalendarBtn = document.getElementById('export-calendar-btn');
-        const exportSpinner = document.getElementById('export-spinner');
+        // const exportSpinner = document.getElementById('export-spinner'); // 移除
 
         const formatDate = (date) => `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 
@@ -835,7 +834,7 @@
             detailsTime.textContent = event.time || '未指定';
             detailsLocation.textContent = event.location || '未指定';
             detailsDescription.textContent = event.description || '沒有提供詳細描述。';
-            if(event.url && event.url.startsWith('https')) {
+            if(event.url) {
                 detailsUrlBtn.href = event.url;
                 detailsUrlBtn.classList.remove('hidden');
             } else {
@@ -1265,32 +1264,52 @@
         
         // --- Export Function ---
         async function exportCalendarImage() {
-            exportSpinner.classList.remove('hidden'); // Show spinner
+            // exportSpinner.classList.remove('hidden'); // 移除 Spinner 顯示
             document.body.classList.add('is-exporting'); // Apply export styles
             
+            // 禁用按鈕並顯示反饋
+            exportCalendarBtn.disabled = true;
+            exportCalendarBtn.textContent = '匯出中...';
+
             const exportArea = document.getElementById('main-container');
 
             // Delay slightly to allow styles to apply
             await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const exportPromise = html2canvas(exportArea, {
+                scale: 1.5, // Increase resolution
+                useCORS: true, 
+                backgroundColor: '#ffffff'
+            });
+
+            // 15 second timeout for export (increased)
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('圖片匯出超時 (15 秒)'));
+                }, 15000);
+            });
 
             try {
-                const canvas = await html2canvas(exportArea, {
-                    scale: 1.5, // Increase resolution
-                    useCORS: true, 
-                    backgroundColor: '#ffffff'
-                });
+                // Race the export against the timeout
+                const canvas = await Promise.race([exportPromise, timeoutPromise]);
 
-                // Create download link
+                // If exportPromise wins, this code runs
                 const link = document.createElement('a');
                 link.download = `${currentMonthYear.textContent.trim()}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
+
             } catch (error) {
                 console.error('匯出圖片失敗:', error);
-                // You might want to show a custom error modal here
+                // Handle error (e.g., show a custom modal to the user)
             } finally {
+                // This block will run whether it succeeds, fails, or times out
                 document.body.classList.remove('is-exporting'); // Remove export styles
-                exportSpinner.classList.add('hidden'); // Hide spinner
+                // exportSpinner.classList.add('hidden'); // 移除 Spinner 隱藏
+                
+                // 恢復按鈕
+                exportCalendarBtn.disabled = false;
+                exportCalendarBtn.textContent = '匯出圖片';
             }
         }
 
