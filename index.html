@@ -10,8 +10,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- 引入 html2canvas 函式庫 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* 自訂樣式 */
         body {
@@ -53,9 +51,6 @@
         }
         /* 批次新增日期選取樣式 */
         .batch-date-cell.selected { background-color: #bfdbfe; border-color: #93c5fd; }
-        
-        /* 移除舊的匯出樣式 */
-
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -76,7 +71,6 @@
             </div>
             <div class="flex flex-col items-end space-y-2">
                 <div class="flex space-x-2">
-                    <button id="export-calendar-btn" class="hidden px-3 py-2 bg-teal-600 text-white text-sm font-semibold rounded-md hover:bg-teal-700">匯出圖片</button>
                     <button id="manage-templates-btn" class="hidden px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-md hover:bg-purple-700">管理活動模板</button>
                     <button id="manage-filters-btn" class="hidden px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700">管理篩選</button>
                 </div>
@@ -314,7 +308,7 @@
         </svg>
         <p class="mt-4 text-gray-600">正在連接雲端資料庫...</p>
     </div>
-    
+
 <script type="module">
     // --- 引入 Firebase SDK ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -414,9 +408,6 @@
         const addSingleEventBtn = document.getElementById('add-single-event-btn');
         const addFromTemplateBtn = document.getElementById('add-from-template-btn');
         const cancelAddOptionsBtn = document.getElementById('cancel-add-options-btn');
-        
-        const exportCalendarBtn = document.getElementById('export-calendar-btn');
-        // const exportSpinner = document.getElementById('export-spinner'); // 移除
 
         const formatDate = (date) => `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
 
@@ -450,7 +441,6 @@
                              manageFiltersBtn.classList.remove('hidden');
                              manageTemplatesBtn.classList.remove('hidden');
                              batchAddBtn.classList.remove('hidden');
-                             exportCalendarBtn.classList.remove('hidden');
                         }
                         eventsCollectionRef = collection(db, `/calendars/${calendarId}/events`);
                         categoriesDocRef = doc(db, `/calendars/${calendarId}/config/categories`);
@@ -792,7 +782,7 @@
             detailsTime.textContent = event.time || '未指定';
             detailsLocation.textContent = event.location || '未指定';
             detailsDescription.textContent = event.description || '沒有提供詳細描述。';
-            if(event.url) {
+            if(event.url && event.url.startsWith('https')) {
                 detailsUrlBtn.href = event.url;
                 detailsUrlBtn.classList.remove('hidden');
             } else {
@@ -1219,128 +1209,7 @@
             addOptionsModal.classList.remove('hidden');
             setTimeout(() => addOptionsModalContent.classList.remove('scale-95', 'opacity-0'), 10);
         }
-        
-        // --- Export Function ---
-        async function exportCalendarImage() {
-            // 禁用按鈕並顯示反饋
-            exportCalendarBtn.disabled = true;
-            exportCalendarBtn.textContent = '匯出中...';
 
-            const exportArea = document.getElementById('main-container');
-            
-            // 1. 儲存原始樣式
-            const originalStyles = {
-                main: {
-                    maxWidth: exportArea.style.maxWidth,
-                    borderRadius: exportArea.style.borderRadius,
-                    boxShadow: exportArea.style.boxShadow,
-                    padding: exportArea.style.padding
-                },
-                body: {
-                    padding: document.body.style.padding
-                },
-                elementsToHide: [],
-                eventLists: [],
-                dayCells: []
-            };
-
-            const elementsToHide = document.querySelectorAll(
-                '#prev-month, #next-month, #batch-add-btn, #export-calendar-btn, #manage-templates-btn, #manage-filters-btn, #filter-container, #last-updated, #user-id-display, .sm\\:hidden, [id$="-modal"], #loading-overlay'
-            );
-            
-            elementsToHide.forEach(el => {
-                originalStyles.elementsToHide.push({ el: el, display: el.style.display });
-            });
-            
-            const monthTitleHeader = document.querySelector('.flex.items-center.justify-between.mb-4');
-            originalStyles.monthTitleHeader = { el: monthTitleHeader, justifyContent: monthTitleHeader.style.justifyContent };
-
-            document.querySelectorAll('.event-list').forEach(el => {
-                originalStyles.eventLists.push({ el: el, maxHeight: el.style.maxHeight, overflowY: el.style.overflowY });
-            });
-            
-            document.querySelectorAll('.sm\\:h-48').forEach(el => {
-                originalStyles.dayCells.push({ el: el, height: el.style.height, minHeight: el.style.minHeight });
-            });
-
-
-            // 2. 應用匯出樣式
-            try {
-                document.body.style.padding = '0';
-                exportArea.style.maxWidth = 'none';
-                exportArea.style.borderRadius = '0';
-                exportArea.style.boxShadow = 'none';
-                exportArea.style.padding = '1.5rem'; // Add some padding for the image border
-
-                elementsToHide.forEach(item => item.el.style.display = 'none');
-                monthTitleHeader.style.justifyContent = 'center';
-
-                originalStyles.eventLists.forEach(item => {
-                    item.el.style.maxHeight = 'none';
-                    item.el.style.overflowY = 'visible';
-                });
-                
-                originalStyles.dayCells.forEach(item => {
-                    item.el.style.height = 'auto';
-                    item.el.style.minHeight = '12rem';
-                });
-
-                // Delay slightly to allow styles to apply
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                const exportPromise = html2canvas(exportArea, {
-                    scale: 1.5, // Increase resolution
-                    useCORS: true, 
-                    backgroundColor: '#ffffff',
-                    windowWidth: 1920 // Force a wider render width
-                });
-
-                // 15 second timeout for export (increased)
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => {
-                        reject(new Error('圖片匯出超時 (15 秒)'));
-                    }, 15000);
-                });
-
-                // Race the export against the timeout
-                const canvas = await Promise.race([exportPromise, timeoutPromise]);
-
-                // If exportPromise wins, this code runs
-                const link = document.createElement('a');
-                link.download = `${currentMonthYear.textContent.trim()}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-
-            } catch (error) {
-                console.error('匯出圖片失敗:', error);
-                // Handle error (e.g., show a custom modal to the user)
-            } finally {
-                // 3. 還原所有原始樣式
-                exportArea.style.maxWidth = originalStyles.main.maxWidth;
-                exportArea.style.borderRadius = originalStyles.main.borderRadius;
-                exportArea.style.boxShadow = originalStyles.main.boxShadow;
-                exportArea.style.padding = originalStyles.main.padding;
-                document.body.style.padding = originalStyles.body.padding;
-
-                originalStyles.elementsToHide.forEach(item => item.el.style.display = item.display);
-                monthTitleHeader.style.justifyContent = originalStyles.monthTitleHeader.justifyContent;
-
-                originalStyles.eventLists.forEach(item => {
-                    item.el.style.maxHeight = item.maxHeight;
-                    item.el.style.overflowY = item.overflowY;
-                });
-                
-                originalStyles.dayCells.forEach(item => {
-                    item.el.style.height = item.height;
-                    item.el.style.minHeight = item.minHeight;
-                });
-
-                // 恢復按鈕
-                exportCalendarBtn.disabled = false;
-                exportCalendarBtn.textContent = '匯出圖片';
-            }
-        }
-        
         // --- Event Listeners ---
         prevMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
         nextMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
@@ -1426,8 +1295,6 @@
 
         };
         cancelAddOptionsBtn.onclick = () => closeModal(addOptionsModal, addOptionsModalContent);
-        
-        exportCalendarBtn.onclick = exportCalendarImage; // 匯出按鈕
 
         [eventModal, deleteConfirmModal, filterManagerModal, eventDetailsModal, templateManagerModal, batchAddModal, addOptionsModal].forEach(modal => {
             if(modal) modal.onclick = (e) => { if (e.target === modal) closeModal(modal, modal.querySelector('.modal-content')); };
