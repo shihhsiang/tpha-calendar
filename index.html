@@ -54,49 +54,7 @@
         /* 批次新增日期選取樣式 */
         .batch-date-cell.selected { background-color: #bfdbfe; border-color: #93c5fd; }
         
-        /* 匯出圖片時的樣式 */
-        body.is-exporting {
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        body.is-exporting .event-list {
-            max-height: none !important;
-            overflow-y: visible !important;
-        }
-        body.is-exporting .sm\:h-48 { /* Tailwind class for sm:h-48 */
-            height: auto !important;
-            min-height: 12rem; /* Keep a minimum height */
-        }
-        body.is-exporting #main-container {
-            height: auto !important;
-            box-shadow: none !important; /* No shadow on the image */
-            max-width: none !important; /* 移除最大寬度 */
-            border-radius: 0 !important; /* 移除圓角 */
-        }
-        
-        /* 匯出時隱藏所有不需要的 UI 元素 */
-        body.is-exporting #prev-month,
-        body.is-exporting #next-month,
-        body.is-exporting #batch-add-btn,
-        body.is-exporting #export-calendar-btn,
-        body.is-exporting #manage-templates-btn,
-        body.is-exporting #manage-filters-btn,
-        body.is-exporting #filter-container,
-        body.is-exporting #last-updated,
-        body.is-exporting #user-id-display,
-        body.is-exporting .sm\:hidden, /* 隱藏手機版列表 */
-        body.is-exporting [id*="-modal"],
-        body.is-exporting #loading-overlay {
-             display: none !important; 
-        }
-        /* 保持月份標題可見 */
-        body.is-exporting #current-month-year {
-            display: block !important;
-        }
-        /* 讓月份標題置中 */
-        body.is-exporting .flex.items-center.justify-between.mb-4 {
-            justify-content: center !important;
-        }
+        /* 移除舊的匯出樣式 */
 
     </style>
 </head>
@@ -1264,32 +1222,86 @@
         
         // --- Export Function ---
         async function exportCalendarImage() {
-            // exportSpinner.classList.remove('hidden'); // 移除 Spinner 顯示
-            document.body.classList.add('is-exporting'); // Apply export styles
-            
             // 禁用按鈕並顯示反饋
             exportCalendarBtn.disabled = true;
             exportCalendarBtn.textContent = '匯出中...';
 
             const exportArea = document.getElementById('main-container');
-
-            // Delay slightly to allow styles to apply
-            await new Promise(resolve => setTimeout(resolve, 100));
             
-            const exportPromise = html2canvas(exportArea, {
-                scale: 1.5, // Increase resolution
-                useCORS: true, 
-                backgroundColor: '#ffffff'
+            // 1. 儲存原始樣式
+            const originalStyles = {
+                main: {
+                    maxWidth: exportArea.style.maxWidth,
+                    borderRadius: exportArea.style.borderRadius,
+                    boxShadow: exportArea.style.boxShadow,
+                    padding: exportArea.style.padding
+                },
+                body: {
+                    padding: document.body.style.padding
+                },
+                elementsToHide: [],
+                eventLists: [],
+                dayCells: []
+            };
+
+            const elementsToHide = document.querySelectorAll(
+                '#prev-month, #next-month, #batch-add-btn, #export-calendar-btn, #manage-templates-btn, #manage-filters-btn, #filter-container, #last-updated, #user-id-display, .sm\\:hidden, [id$="-modal"], #loading-overlay'
+            );
+            
+            elementsToHide.forEach(el => {
+                originalStyles.elementsToHide.push({ el: el, display: el.style.display });
+            });
+            
+            const monthTitleHeader = document.querySelector('.flex.items-center.justify-between.mb-4');
+            originalStyles.monthTitleHeader = { el: monthTitleHeader, justifyContent: monthTitleHeader.style.justifyContent };
+
+            document.querySelectorAll('.event-list').forEach(el => {
+                originalStyles.eventLists.push({ el: el, maxHeight: el.style.maxHeight, overflowY: el.style.overflowY });
+            });
+            
+            document.querySelectorAll('.sm\\:h-48').forEach(el => {
+                originalStyles.dayCells.push({ el: el, height: el.style.height, minHeight: el.style.minHeight });
             });
 
-            // 15 second timeout for export (increased)
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => {
-                    reject(new Error('圖片匯出超時 (15 秒)'));
-                }, 15000);
-            });
 
+            // 2. 應用匯出樣式
             try {
+                document.body.style.padding = '0';
+                exportArea.style.maxWidth = 'none';
+                exportArea.style.borderRadius = '0';
+                exportArea.style.boxShadow = 'none';
+                exportArea.style.padding = '1.5rem'; // Add some padding for the image border
+
+                elementsToHide.forEach(item => item.el.style.display = 'none');
+                monthTitleHeader.style.justifyContent = 'center';
+
+                originalStyles.eventLists.forEach(item => {
+                    item.el.style.maxHeight = 'none';
+                    item.el.style.overflowY = 'visible';
+                });
+                
+                originalStyles.dayCells.forEach(item => {
+                    item.el.style.height = 'auto';
+                    item.el.style.minHeight = '12rem';
+                });
+
+                // Delay slightly to allow styles to apply
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                const exportPromise = html2canvas(exportArea, {
+                    scale: 1.5, // Increase resolution
+                    useCORS: true, 
+                    backgroundColor: '#ffffff',
+                    windowWidth: 1920 // Force a wider render width
+                });
+
+                // 15 second timeout for export (increased)
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => {
+                        reject(new Error('圖片匯出超時 (15 秒)'));
+                    }, 15000);
+                });
+
                 // Race the export against the timeout
                 const canvas = await Promise.race([exportPromise, timeoutPromise]);
 
@@ -1303,16 +1315,32 @@
                 console.error('匯出圖片失敗:', error);
                 // Handle error (e.g., show a custom modal to the user)
             } finally {
-                // This block will run whether it succeeds, fails, or times out
-                document.body.classList.remove('is-exporting'); // Remove export styles
-                // exportSpinner.classList.add('hidden'); // 移除 Spinner 隱藏
+                // 3. 還原所有原始樣式
+                exportArea.style.maxWidth = originalStyles.main.maxWidth;
+                exportArea.style.borderRadius = originalStyles.main.borderRadius;
+                exportArea.style.boxShadow = originalStyles.main.boxShadow;
+                exportArea.style.padding = originalStyles.main.padding;
+                document.body.style.padding = originalStyles.body.padding;
+
+                originalStyles.elementsToHide.forEach(item => item.el.style.display = item.display);
+                monthTitleHeader.style.justifyContent = originalStyles.monthTitleHeader.justifyContent;
+
+                originalStyles.eventLists.forEach(item => {
+                    item.el.style.maxHeight = item.maxHeight;
+                    item.el.style.overflowY = item.overflowY;
+                });
                 
+                originalStyles.dayCells.forEach(item => {
+                    item.el.style.height = item.height;
+                    item.el.style.minHeight = item.minHeight;
+                });
+
                 // 恢復按鈕
                 exportCalendarBtn.disabled = false;
                 exportCalendarBtn.textContent = '匯出圖片';
             }
         }
-
+        
         // --- Event Listeners ---
         prevMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); };
         nextMonthBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); };
